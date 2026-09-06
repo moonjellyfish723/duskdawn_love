@@ -1,3 +1,11 @@
+### 2026-09-07 00:5x（#223 群聊颜色「一改就恢复」+ #224 摸鱼 chk 每分钟 dcfP 报错——荣耀畅玩40 Plus+夸克诊断报障，用户明说其他机型也有；已构建·sw mochi-mtq1331l·本次构建者：AI-A 本会话）
+- [AI-A 域]（**改动文件：src/js/group-chat.js（pickGcColor 删选色即回滚分支；新增 gcEnsureContrast 对比度自愈、接入 applyGcBeauty 尾部：out/in 组合对比 <1.5 时注入 #gc-contrast-fix 强制黑/白可读文字色，重入路径自动重算；低对比警告行文案改述新行为）、src/js/p2-features.js（chk 所在 IIFE 新增 dcfPFish 助手走 window.dcfGet，修跨 IIFE 引用 dcfP 必抛 ReferenceError）、build.mjs（哨兵 +2；#132 摸鱼锚 dcfP('fish',35)→dcfPFish(35)——原锚即作用域 bug 本体，改锚已在 name 里说明）、FIX-REGRESSION.md（#223/#224 行+设备索引「荣耀畅玩40 Plus（夸克）」行）、tools/verify-gc-color.mjs（新增 14 断言）、tools/verify-func-card-prob.mjs（A9 期望随 #224 更新）**；构建状态：**已构建·sw mochi-mtq1331l·哨兵 490/490 哑 0·sw 14/14**）。
+- #223 根因（v3.9.x 对比度保护设计缺陷）：pickGcColor 选色后 gcColorPairBad（阈值 2.2）不达标即回滚旧色。从默认黑气泡+白字出发：粉/浅色气泡对白字对比 1.1~1.5 全被拒、深色文字对黑底同样被拒，两步互锁——用户无论先改哪个都弹回（三步中转无人能想到）。与机型无关纯逻辑 bug。单聊同功能 v3.26.x 已改自愈方案（chat-settings._ensureBubbleContrast），群聊漏改，本次对齐。
+- #224 根因（#132 接线作用域错）：dcfP 定义在「同频/伸手」IIFE（2083-4304），摸鱼抓包检查器 chk 在另一 IIFE（4312-4375）里引用——必抛 ReferenceError；且 chk 中断后 lastTa 不更新 → delta 恒>0 → 每分钟继续抛，还污染用户诊断「最近错误」环。
+- 验证：node --check 过；--check-sentinels 490/490 哑 0；verify-gc-color **14/14**（无头真实 UI 端到端：美化→我的气泡颜色→选樱花粉→确定——颜色生效且持久化不回滚、低对比自愈注入黑字、文字改黑后自愈自动移除、导入黑底黑字自愈兜底、恢复默认自愈移除、全程零未捕获错误）；verify-gc-settings **26/26**、verify-func-card-prob **19/19**（A9 口径更新）、eat-remind 过；water-chat 13/24 红为存量（stash 对照 HEAD 基线同红，TASKS #130/#131 在册，本批未触碰喝水链路）。
+- 随库说明：树上原挂 #222 收口后遗留的 stepper 归整一行（WORKLOG 2026-09-06 22:4x 已登记、完整），本次构建随库带入产物。
+- 【真机:待验证】（荣耀畅玩40 Plus+夸克 及任意机型）：①群聊→右上设置→美化聊天→改「我的气泡颜色/联系人气泡颜色/文字颜色」任意色板色——改完不再弹回旧色；②配成极低对比时消息文字仍清晰（系统自动换黑/白文字）；③设置页诊断「最近错误」不再出现 dcfP is not defined。
+
 ### 2026-09-06 03:0x（#214 屏幕适配诊断页面专项：聊天页/主页两节采集+判定；已构建）
 * [AI-B 域]（**改动文件：src/js/device.js（collectScreenDiag 页面专项：聊天页可见性/消息节点/内容高/输入栏底边宽+主页页数/图标数/池内组件名单/tabbar 底边；报告 == 聊天页 == / == 主页 == 两节；输入栏贴底判定（键盘已收时））、build.mjs（FIX_SENTINELS 2 条）、FIX-REGRESSION.md（#214 行）**）。
 * 动机：用户点名 iOS 问题集中在聊天/主页两处，文档级诊断缺页面级数据（池内组件名单直接回答「图标/组件去哪了」）。

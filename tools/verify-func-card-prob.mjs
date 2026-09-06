@@ -47,7 +47,8 @@ check('A5 fc 页说明文案提到使用概率可调', tplSrc.includes('每个�
 check('A6 heal 重同步覆盖 dcf 键', dcSrc.includes('Object.keys(DCF_DEF).forEach(function (k)'));
 check('A7 温柔前缀概率行接 _warmP（dcfGet）', periodSrc.includes('if (Math.random() * 100 >= _warmP) return text;') && periodSrc.includes("window.dcfGet('period')"));
 check('A8 温柔前缀默认 25 兜底', periodSrc.includes('var _warmP = 25;'));
-check('A9 p2-features 四单值分类接线', p2Src.includes("dcfP('fish', 35)") && p2Src.includes("dcfP('eat', 35)") && p2Src.includes("dcfP('sync', 60)") && p2Src.includes("dcfP('reach', 55)"));
+// #224：摸鱼接线改经本 IIFE 助手 dcfPFish（原 dcfP 跨 IIFE 引用必抛 ReferenceError，语义等价 dcfGet('fish') 默认 35）
+check('A9 p2-features 四单值分类接线', p2Src.includes('dcfPFish(35)') && p2Src.includes("dcfP('eat', 35)") && p2Src.includes("dcfP('sync', 60)") && p2Src.includes("dcfP('reach', 55)"));
 check('A10 喝水乘法门控三处', (p2Src.match(/dcfHit\('water'\)/g) || []).length === 3);
 check('A11 花园/查岗接线', gardenSrc.includes("window.dcfGet('garden')") && chatSrc.includes('Math.random() * 100 < _dkP'));
 check('A12 room/cjian/drift/music 门控', roomSrc.includes("window.dcfGet('room')") && cjianSrc.includes("window.dcfGet('cjian')") && driftSrc.includes("window.dcfGet('drift')") && musicSrc.includes("window.dcfGet('music')"));

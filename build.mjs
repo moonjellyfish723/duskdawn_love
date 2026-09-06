@@ -665,7 +665,7 @@ const FIX_SENTINELS = [
   { name: '#217 屏幕诊断·切页前抢拍钩（syncChrome 的 blur 在切页瞬间触发残留自愈，必须在 pages hidden 之前同步采集）', file: 'js/tabs.js', needle: 'const sdLeaveSnap = () =>' },
   { name: '#132 功能字卡概率·stepper 绑定与 dcfGet（改掉 DCF_DEF 默认表或删 window.dcfGet 暴露即回归——字卡库【其他互动功能字卡】各分类使用概率可显示可调）', file: 'js/default-cards.js', needle: 'window.dcfGet = dcfVal;' },
   { name: '#132 温柔前缀/动作概率接 dcf-period（改回硬编码 Math.random()*100>=25 即回归——经期字卡概率可调）', file: 'js/period.js', needle: 'if (Math.random() * 100 >= _warmP) return text;' },
-  { name: '#132 摸鱼浮字/抓包回应概率接 dcf-fish（改回 Math.random()<0.35 硬编码即回归）', file: 'js/p2-features.js', needle: "dcfP('fish', 35)" },
+  { name: '#132 摸鱼浮字/抓包回应概率接 dcf-fish（改回 Math.random()<0.35 硬编码即回归；#224 改经本 IIFE 助手 dcfPFish→window.dcfGet，原锚 dcfP 跨 IIFE 不可见是作用域 bug 本体）', file: 'js/p2-features.js', needle: 'dcfPFish(35)' },
   { name: '#132 吃饭追问关心概率接 dcf-eat（改回硬编码 0.35 即回归）', file: 'js/p2-features.js', needle: "dcfP('eat', 35)" },
   { name: '#132 同频敲三下回应概率接 dcf-sync（改回硬编码 0.6 即回归）', file: 'js/p2-features.js', needle: "dcfP('sync', 60)" },
   { name: '#132 伸手摸到概率接 dcf-reach（改回硬编码 0.55 即回归）', file: 'js/p2-features.js', needle: "dcfP('reach', 55)" },
@@ -683,6 +683,8 @@ const FIX_SENTINELS = [
   { name: '#220 屏上渲染凭据登记（windowRenderedN/Prefix/Stale——整窗渲染时记录「屏上由哪份 msgs 渲染」，同窗补丁的判定基础，删登记则补丁永不命中=哑修复）', file: 'js/chat.js', needle: 'windowRenderedPrefix = window.activePrefix();' },
   { name: '#220 增量追加对齐渲染凭据（addRec 后屏上窗口多出尾部消息，重开时才能命中同窗补丁——删此对齐=聊过天再重开必闪）', file: 'js/chat.js', needle: 'windowRenderedN = Number(el.dataset.idx) + 1;' },
   { name: '#220 idle 回执占位标记（权威前读不到正文渲染占位+pendingRead 标记，权威到位原地替换——删标记则占位文本永久停留）', file: 'js/chat.js', needle: "m.dataset.pendingRead = '1';" },
+  { name: '#223 群聊颜色对比度自愈（选色不再回滚=修「一改就恢复」；低对比注入强制可读文字色——删自愈规则即回归，恢复「选色即弹回」或黑底黑字）', file: 'js/group-chat.js', needle: "'#page-group-chat .msg-' + p[0] + ' .msg-bubble.msg-bubble{color:'" },
+  { name: '#224 摸鱼抓包 chk 作用域修复（本 IIFE 自备 dcfPFish 走 window.dcfGet——删助手改回跨 IIFE 引用 dcfP 即回归：每分钟 ReferenceError dcfP is not defined）', file: 'js/p2-features.js', needle: 'function dcfPFish(def)' },
 ];
 try {
   const built = CHECK_SENTINELS ? '' : readFileSync(join(root, 'index.html'), 'utf8');

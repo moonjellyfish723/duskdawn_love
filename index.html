@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788709333199">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.495</b></span>
-        <span class="sv-deploy">部署于 2026-09-06 23:42<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788712241961">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.496</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 00:30<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.495</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.496</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.495</span>
+              <span class="lic-ver">v3.26.496</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -32483,7 +32483,7 @@ return ratio !== null && ratio < GC_MIN_CONTRAST;
 function gcColorWarnText(key) {
 const names = { 'out-bg': '我的气泡', 'in-bg': '联系人气泡' };
 const n = names[key] || '';
-return n + '：文字与气泡颜色太接近，消息可能看不清，建议改深/改浅';
+return n + '：文字与气泡颜色对比偏低，消息可能看不清（低于安全线时会自动换黑/白文字保证可读），建议改深/改浅';
 }
 function applyGcFont() {
 const page = document.getElementById('page-group-chat');
@@ -32522,6 +32522,23 @@ st.textContent = out;
 document.head.appendChild(st);
 if (hint) setTimeout(() => { try { toast(hint); } catch (e) {} }, 50);
 }
+function gcEnsureContrast() {
+const page = document.getElementById('page-group-chat');
+if (!page) return;
+let fix = document.getElementById('gc-contrast-fix');
+const rules = [];
+[['out', gcBeautyGet('out-bg'), gcBeautyGet('out-ink')], ['in', gcBeautyGet('in-bg'), gcBeautyGet('in-ink')]].forEach((p) => {
+const ratio = gcContrast(p[2], p[1]);
+if (ratio !== null && ratio < 1.5) {
+const lum = gcColorLum(p[1]);
+rules.push('#page-group-chat .msg-' + p[0] + ' .msg-bubble.msg-bubble{color:' + (lum !== null && lum >= 0.5 ? '#111111' : '#ffffff') + ' !important}');
+}
+});
+if (rules.length) {
+if (!fix) { fix = document.createElement('style'); fix.id = 'gc-contrast-fix'; document.head.appendChild(fix); }
+fix.textContent = rules.join('\n');
+} else if (fix) fix.remove();
+}
 function applyGcBeauty() {
 const page = document.getElementById('page-group-chat');
 if (!page) return;
@@ -32554,6 +32571,7 @@ if (bg) { page.style.backgroundSize = 'cover'; page.style.backgroundPosition = '
 }
 applyGcFont();
 applyGcCss();
+gcEnsureContrast();
 }
 gcBeautyLoad();
 applyGcBeauty();
@@ -33707,12 +33725,7 @@ const cur = gcBeautyGet(key);
 window.openModal(title, '', (v) => {
 const color = (typeof v === 'number' && swatches[v]) ? swatches[v].color : v;
 if (!color) return;
-const prev = gcBeautyGet(key);
 gcBeautySet(key, color);
-if (gcColorPairBad(key)) {
-gcBeautySet(key, prev);
-toast('已恢复：该颜色与气泡太接近，消息会看不清');
-}
 }, { colorPicker: true, color: cur, swatches: swatches });
 }
 function pickGcPills(key, title, pills, def) {
@@ -60912,13 +60925,14 @@ if (window.isDefaultCardOff) arr = arr.filter(c => !window.isDefaultCardOff('fis
 return arr.length ? arr : fallback.slice();
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function dcfPFish(def) { try { if (window.dcfGet) return window.dcfGet('fish'); } catch (e) {} return def; }
 function chk() {
 if (document.hidden) return;
 const s = window.activeStore && window.activeStore(); if (!s) return;
 let cur = 0; try { cur = parseInt(s.get('fish-total-ta') || '0', 10) || 0; } catch (e) {}
 if (lastTa === null) { lastTa = cur; return; }
 const delta = cur - lastTa;
-if (delta > 0 && Math.random() * 100 < dcfP('fish', 35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
+if (delta > 0 && Math.random() * 100 < dcfPFish(35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
 window.taChimeUse('fish-ta-note');
 if (window.taChimeShow) {
 const note = pick(fishPool('摸鱼浮字', FISH_NOTE_FALLBACK));
@@ -80347,4 +80361,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtpzcqmn -->
+<!-- __MOCHI_EOF__ mtq1331l -->

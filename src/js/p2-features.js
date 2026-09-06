@@ -4328,6 +4328,11 @@ if (ckRefresh) {
     return arr.length ? arr : fallback.slice();
   }
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  // FIX 2026-09-07 #224 作用域修复：#132 在本 IIFE 的 chk 里引用了上方另一 IIFE（2083-4304）
+  // 内的 dcfP，作用域不通必抛 ReferenceError（用户诊断日志每分钟 dcfP is not defined，且
+  // chk 中断后 lastTa 不更新、下次继续报）。本作用域自备同语义助手（走 window.dcfGet，
+  // 未设置时 dcfGet 内部已回退内置默认表）。
+  function dcfPFish(def) { try { if (window.dcfGet) return window.dcfGet('fish'); } catch (e) {} return def; }
   function chk() {
     if (document.hidden) return;
     const s = window.activeStore && window.activeStore(); if (!s) return;
@@ -4335,7 +4340,7 @@ if (ckRefresh) {
     if (lastTa === null) { lastTa = cur; return; }
     const delta = cur - lastTa;
     // v3.32.x #132：摸鱼字卡概率接 dcf-fish（默认 35%=原值，单值替换非叠加）
-    if (delta > 0 && Math.random() * 100 < dcfP('fish', 35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
+    if (delta > 0 && Math.random() * 100 < dcfPFish(35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
       window.taChimeUse('fish-ta-note');
       if (window.taChimeShow) {
         const note = pick(fishPool('摸鱼浮字', FISH_NOTE_FALLBACK));

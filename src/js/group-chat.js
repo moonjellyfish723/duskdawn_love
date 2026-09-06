@@ -249,7 +249,7 @@
   function gcColorWarnText(key) {
     const names = { 'out-bg': '我的气泡', 'in-bg': '联系人气泡' };
     const n = names[key] || '';
-    return n + '：文字与气泡颜色太接近，消息可能看不清，建议改深/改浅';
+    return n + '：文字与气泡颜色对比偏低，消息可能看不清（低于安全线时会自动换黑/白文字保证可读），建议改深/改浅';
   }
   // 群聊页局部字体（不污染全局 body/html）
   function applyGcFont() {
@@ -292,6 +292,26 @@
     document.head.appendChild(st);
     if (hint) setTimeout(() => { try { toast(hint); } catch (e) {} }, 50);
   }
+  // FIX 2026-09-07 #223 群聊气泡对比度自愈（同单聊 chat-settings._ensureBubbleContrast）：
+  // 文字色与气泡色对比过低（用户自选低对比组合/导入美化方案）时注入高优先级覆盖样式强制
+  // 文字可见——对比度保护从「拒绝用户选色」改为「保证可读」，用户选的颜色保留生效
+  function gcEnsureContrast() {
+    const page = document.getElementById('page-group-chat');
+    if (!page) return;
+    let fix = document.getElementById('gc-contrast-fix');
+    const rules = [];
+    [['out', gcBeautyGet('out-bg'), gcBeautyGet('out-ink')], ['in', gcBeautyGet('in-bg'), gcBeautyGet('in-ink')]].forEach((p) => {
+      const ratio = gcContrast(p[2], p[1]);
+      if (ratio !== null && ratio < 1.5) {
+        const lum = gcColorLum(p[1]);
+        rules.push('#page-group-chat .msg-' + p[0] + ' .msg-bubble.msg-bubble{color:' + (lum !== null && lum >= 0.5 ? '#111111' : '#ffffff') + ' !important}');
+      }
+    });
+    if (rules.length) {
+      if (!fix) { fix = document.createElement('style'); fix.id = 'gc-contrast-fix'; document.head.appendChild(fix); }
+      fix.textContent = rules.join('\n');
+    } else if (fix) fix.remove();
+  }
   // 应用群聊美化（CSS 变量在 #page-group-chat 上局部覆盖；默认值与聊天页默认一致）
   function applyGcBeauty() {
     const page = document.getElementById('page-group-chat');
@@ -328,6 +348,7 @@
     }
     applyGcFont();
     applyGcCss();
+    gcEnsureContrast();
   }
   gcBeautyLoad();
   applyGcBeauty();
@@ -1508,7 +1529,7 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
       val.addEventListener('change', () => {
         let v = parseFloat(val.value); if (!isFinite(v)) v = mn;
         v = Math.max(mn, Math.min(mx, v));
-        v = sp < 1 ? Math.round(v / sp) * sp : Math.round(v);
+        v = Math.round(v / sp) * sp; // 就近归整到步长（prob=5 时 42→40，与回复设置页 stepper 一致）
         val.value = fmt(v); save(val.value);
       });
       val.addEventListener('blur', () => {
@@ -1626,13 +1647,11 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
     window.openModal(title, '', (v) => {
       const color = (typeof v === 'number' && swatches[v]) ? swatches[v].color : v;
       if (!color) return;
-      const prev = gcBeautyGet(key);
+      // FIX 2026-09-07 #223 群聊颜色一改就恢复：原对比度保护在选色后立即回滚——粉/浅色
+      // 气泡配默认白字、深色文字配默认黑底，全部对比度 < 2.2 被拒，用户怎么选都会弹回
+      // 旧色（多机型用户报障，与机型无关）。改为接受所选颜色，可读性由 applyGcBeauty
+      // 尾部 gcEnsureContrast 自愈兜底（方案同单聊 chat-settings._ensureBubbleContrast）。
       gcBeautySet(key, color);
-      // 对比度保护：文字/气泡同色系 → 回滚并提示（防黑底黑字）
-      if (gcColorPairBad(key)) {
-        gcBeautySet(key, prev);
-        toast('已恢复：该颜色与气泡太接近，消息会看不清');
-      }
     }, { colorPicker: true, color: cur, swatches: swatches });
   }
   function pickGcPills(key, title, pills, def) {
