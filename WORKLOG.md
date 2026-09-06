@@ -1,3 +1,8 @@
+### 2026-09-07 05:0x（#238 备忘提醒：概率触发 TA 在聊天里催办备忘——复刻吃饭提醒模式）
+- [AI-A 域+跨域 contacts.js 一行]（**改动文件：src/js/memo-app.js（DEF_MEMO_REMIND 三组话术+memo-app-remind 单键配置[en 默认开/prob 默认 2/done 日标记]+memoRemindTick 每 4 分钟一掷·23-6 静默·每天最多 1 条+memoRemindFire 按紧急度挑事项[过期>今日到期>积压>普通]经 chatAddIn 发{tag:'备忘提醒'} chip+manage 行新增「备忘提醒」「提醒概率」两钮+暴露 window.memoRemindTickNow）；src/css/memo.css（.memo-manage 改 flex 换行容三钮）；src/js/contacts.js（EXCLUDE+memo-app-remind 一行，跨域声明：防 migrateLegacy 误迁，同 v3.26.x 三键先例）；build.mjs（哨兵+2=517：发送锚+每日一次闸）；src/template.html（功能介绍行补概率催办描述）；FIX-REGRESSION.md（+#238 行，顺带补 #237 行缺失的两个尾列）；**构建状态：已构建·sw 视 version.json·本会话（AI-A）执行**）。
+- 需求：用户「备忘我需要概率触发联系人在聊天里发出来提醒我」——#237 只覆盖添加当下回应，待办挂着时聊天侧零提醒。
+- 验证：node --check 过；--check-sentinels 517 全绿哑 0；playwright 冒烟（prob=100→tickNow→聊天出现带「备忘提醒」chip 催办+done 标记落位+同日二次不重发）；布局 verify。【真机:待验证】调概率→等命中→聊天收催办，同日仅 1 条。
+- 【跨域声明】contacts.js 仅 EXCLUDE 追加 1 键名（memo-app 域配套，理由见上）。
 ### 2026-09-07 04:18（#237 备忘录添加备忘触发聊天提问——链路缺失补齐）
 - [AI-A 域+跨域 build.mjs/template.html]（**改动文件：src/js/memo-app.js（新增 DEF_MEMO_ASK 语料 4 条+memoAddFromInput 保存后经 window.chatAddIn 发「回应+追问」带 { tag:'备忘' } chip——此前新增零聊天联动、仅完成/分享两通道）；build.mjs（哨兵+1=515：chatAddIn(memoPick(DEF_MEMO_ASK) 逻辑锚）；src/template.html（生活工具·备忘录功能介绍行补「添加备忘 TA 会在聊天里回应追问」，顺带删已下线的「桌面横幅实时显示待办数」过期描述）；FIX-REGRESSION.md（+237 行）；**构建状态：已构建·sw 视 version.json·本会话（AI-A）执行**）。
 - 需求：用户报「备忘录添加的备忘无法触发聊天里联系人提问」。排查定性：非回归，该链路从未存在（聊天侧仅勾选完成[开关默认关]/手动分享；BUGS/台账/git 历史均无记录）→ 按现有「系统消息进聊天」模式（喝水/吃饭提醒同款 tag chip 通道）补齐。

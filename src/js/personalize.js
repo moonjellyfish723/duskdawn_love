@@ -1804,13 +1804,16 @@ try {
 
   // v3.7.x：背景模糊——slider 0~20px，CSS 变量 --desk-bg-blur。
   // v3.7.x 修复：blur(0px) 也会保持 backdrop-filter 激活（iOS 全屏每帧栅格化卡顿源），
-  // 模糊为 0 时给 .phone-bg-mask 去 .blur-on（filter 属性整个移除），>0 才启用
+  // 模糊为 0 时去掉 .desk-blur-on（filter 属性整个移除），>0 才启用
   const bgBlurRow = document.getElementById('row-bg-blur');
   const bgBlurVal = document.getElementById('bg-blur-val');
   const getBgBlur = () => { const v = store.get('bg-blur'); if (v) { const n = parseInt(v, 10); if (!isNaN(n)) return Math.max(0, Math.min(20, n)); } return 0; };
   const setBgBlurClass = (px) => {
-    const maskEl = document.querySelector('.phone-bg-mask');
-    if (maskEl) maskEl.classList.toggle('blur-on', px > 0);
+    // FIX 2026-09-07 #238：模糊改画在壁纸常驻图层自身（.desk-blur-on 挂 .phone，
+    // 见 home.css 同日注）——原 .phone-bg-mask.blur-on 的 backdrop-filter 在
+    // 小米15Pro/Chrome 151 真机上采样不生效（#219 提层后仍无感），不再挂。
+    const ph = document.querySelector('.phone');
+    if (ph) ph.classList.toggle('desk-blur-on', px > 0);
   };
   const applyBgBlur = (px) => {
     document.documentElement.style.setProperty('--desk-bg-blur', px + 'px');

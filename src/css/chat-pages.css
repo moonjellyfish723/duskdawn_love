@@ -221,6 +221,16 @@
    列表改真虚拟滚动窗口（default-cards.js），首尾用 .cc-vspace 占位块撑起总高。 */
 #page-default-cards { overflow-y:auto; }
 #page-default-cards #dc-list { flex:0 0 auto; overflow:visible; min-height:0; -webkit-overflow-scrolling:auto; overscroll-behavior:auto; }
+/* FIX 2026-09-07 #237：互动功能字卡页 / 查岗字卡页同款整页滚动——#132 在 fc 页头部插入
+   13 行「使用概率」stepper（dcf-prob-box ~794px）后，.card-list{flex:1;overflow-y:auto}
+   的 overflow 非 visible 使 flex 自动最小尺寸归 0：#fc-list 被压成 6px 高、列表首屏
+   top≈1234 全在视口（808）外＝「其他互动功能字卡看不到了，点击没有任何内容」
+   （小米15Pro/Chrome 384x808 无头实测复现；概率框已随本修移到列表下方，双保险——
+   未来头部再插入高块也不会再把列表挤没）。dk 页同构预防。 */
+#page-fun-cards { overflow-y:auto; }
+#page-fun-cards #fc-list { flex:0 0 auto; overflow:visible; min-height:0; -webkit-overflow-scrolling:auto; overscroll-behavior:auto; }
+#page-deskcheck { overflow-y:auto; }
+#page-deskcheck #dk-list { flex:0 0 auto; overflow:visible; min-height:0; -webkit-overflow-scrolling:auto; overscroll-behavior:auto; }
 /* 虚拟窗口高度占位块：只用高度撑出滚动区间，本身无内容不可点 */
 .cc-vspace { display:block; margin:0; padding:0; pointer-events:none; }
 .dc-toggle {

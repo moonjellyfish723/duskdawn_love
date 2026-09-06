@@ -106,7 +106,8 @@
     // v3.26.x：备忘录数据全局共享（memo-app.js 存根命名空间，所有桌面互通一份）——
     // memo-app-items/memo-app-send/memo-app-global-migrated 绝不随联系人隔离；
     // memo-app.js 已内置误迁自愈，这里补排除让 migrateLegacy 彻底不再动它们。
-    'memo-app-items', 'memo-app-send', 'memo-app-global-migrated',
+    // #238 增 memo-app-remind（备忘提醒配置单键 JSON：开关/概率/当天已提醒标记）。
+    'memo-app-items', 'memo-app-send', 'memo-app-global-migrated', 'memo-app-remind',
     // v3.26.x：桌面美化方案（personalize.js beauty-schemes）、聊天美化方案（chat-settings.js
     // chat-beauty-schemes）、隐藏TA表情包开关（chat-settings.js hide-ta-sticker，聊天/朋友圈
     // 共用）都是全局根键。此前漏排除，被 migrateLegacy 迁进 default 桌面并删 LS 根键 →

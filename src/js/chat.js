@@ -1917,20 +1917,27 @@ renderWindow(true, false);
 // 替换成真实内容。返回 true=已补丁无需重渲；false=不满足条件，调用方走原整窗渲染。
 // 注：窗口含 lite 快照残留（img==='' / voice==='' / _lsLite，大历史 LS 快照必然剥负载）
 // 时不跳过——权威数据在这些下标上是真实媒体，整窗重渲才算把图/语音补上（内容真变了）。
+// FIX 2026-09-07 #237：放宽「窗口尾必须贴最新」——屏上窗口是权威数组的「前缀」（权威
+// 比屏上多出尾部，典型=LS 快照缺上次会话尾条/对端新消息只在 IDB）时，原条件直接放弃
+// → 权威收尾整窗清空重画=打开聊天「先跳动一下才显示正常」（小米15Pro/Chrome 同机复发，
+// 无头实测 rm3+add8 复现）。现改为：前缀段仍须无 lite 残留+DOM idx 齐整，通过后走
+// loadNewerIncremental 尾部增量追加（已有节点零重建），屏上比权威多（数据回滚/裁剪）
+// 仍整窗兜底。#220 原同窗路径（grown===0）行为逐字节不变。
 function inplacePatchIfSameWindow() {
 const len = msgs.length;
 if (!len) return false;
 if (windowStale) return false;
 try { if (windowRenderedPrefix !== window.activePrefix()) return false; } catch (e) { return false; }
-if (windowRenderedN !== len) return false; // 窗口尾必须贴最新（渲染时 renderEnd=len）
-// 窗口内 lite 残留扫描（仅扫 renderStart..len-1，O(窗口)）——有残留必须整窗重渲升级
-for (let i = renderStart; i < len; i++) {
+const grown = len - windowRenderedN;
+if (grown < 0) return false; // 屏上比权威多＝数据被裁/回滚，整窗重建兜底
+// 窗口内 lite 残留扫描（仅扫屏上已渲染段 renderStart..windowRenderedN-1，O(窗口)）——有残留必须整窗重渲升级
+for (let i = renderStart; i < windowRenderedN; i++) {
 const m = msgs[i];
 if (!m) continue;
 if (m._lsLite || m.img === '' || m.voice === '') return false;
 if (Array.isArray(m.parts) && m.parts.some(p => p && typeof p.v === 'string' && p.v === '')) return false;
 }
-// DOM [data-idx] 须恰为 renderStart..len-1 顺序排列（时间分隔线无 data-idx 不计；
+// DOM [data-idx] 须恰为 renderStart..windowRenderedN-1 顺序排列（时间分隔线无 data-idx 不计；
 // 有裁剪/位移/脏节点即放弃，走整窗重建兜底）
 let n = renderStart;
 const pending = [];
@@ -1941,7 +1948,7 @@ if (Number(el.dataset.idx) !== n) return false;
 if (el.dataset.pendingRead === '1') pending.push(el);
 n++;
 }
-if (n !== len) return false;
+if (n !== windowRenderedN) return false;
 for (let k = 0; k < pending.length; k++) {
 const el = pending[k];
 delete el.dataset.pendingRead;
@@ -1951,6 +1958,12 @@ if (rec && rec.special === 'read' && b && !rec.retracted &&
 b.textContent.indexOf('已读不回') >= 0) {
 b.innerHTML = '<span style="opacity:.5;font-size:12px">' + escTxt(rec.text || '已读不回') + '</span>';
 }
+}
+if (grown > 0) {
+// 尾部增量追加（复用滚动加载的增量路径：新条目照常渲染/锚定/prune，已有节点零重建）；
+// 追加没补齐（异常）返回 false，调用方整窗重建兜底（renderWindow 清空重来，状态自洽）
+for (let r = 0; r < Math.ceil(grown / LOAD_STEP) + 1 && renderEnd < len; r++) loadNewerIncremental(len);
+if (renderEnd !== len) return false;
 }
 return true;
 }
@@ -1984,10 +1997,13 @@ body.scrollTop = body.scrollHeight; // 原窗口为空，直接滚到底
 if (renderEnd - renderStart > WINDOW_MAX) pruneWindowBottom();
 suppressScrollUntil = Date.now() + 200;
 }
-function loadNewerIncremental() {
+function loadNewerIncremental(targetLen) {
 const len = msgs.length;
-if (renderEnd >= len) return;
-const newEnd = Math.min(len, renderEnd + LOAD_STEP);
+// FIX 2026-09-07 #237：可选 targetLen——原地补丁的尾部增量一次补到权威长度（不传=
+// 滚动加载语义不变，每批 LOAD_STEP）
+const want = (typeof targetLen === 'number' && targetLen > 0) ? Math.min(targetLen, len) : len;
+if (renderEnd >= want) return;
+const newEnd = Math.min(want, renderEnd + LOAD_STEP);
 if (newEnd === renderEnd) return;
 batchRendering = true;
 let anchor = null;

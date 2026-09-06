@@ -7978,7 +7978,7 @@ color: #c67800;
 .mm-del { color:var(--ink-soft,#c0c0c0); }
 .mm-del svg { width:13px; height:13px; }
 .memo-empty { text-align:center; font-size:13px; color:var(--ink-soft,#aaa); padding:36px 0 8px; line-height:1.9; }
-.memo-manage { text-align:center; margin-top:14px; }
+.memo-manage { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; }
 .memo-send-btn { font-size:12px; color:var(--ink-soft,#888); background:rgba(255,255,255,.7); border:1px solid rgba(0,0,0,.12); border-radius:16px; padding:6px 16px; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
 .memo-send-btn:active { background:rgba(0,0,0,.06); }
 .narc-scroll { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; box-sizing:border-box; padding:12px 14px 120px; scrollbar-width:none; -ms-overflow-style:none; }
@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788725908487">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.512</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 04:18<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788726711126">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.513</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 04:31<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9970,7 +9970,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.512</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.513</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10261,7 +10261,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.512</span>
+              <span class="lic-ver">v3.26.513</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -10530,7 +10530,7 @@ transition-duration: .01ms !important;
           <details class="lic-grp">
             <summary><span class="lg-num">16</span><span class="lg-name">生活工具</span><span class="lg-count">6</span></summary>
             <div class="lg-body">
-          <div class="lic-li">【备忘录】待办管理：置顶 / 截止日期 / 临期排序 / 一键清已完成；添加备忘 TA 会在聊天里回应追问、临期催办、偶尔帮你勾掉最旧一条</div>
+          <div class="lic-li">【备忘录】待办管理：置顶 / 截止日期 / 临期排序 / 一键清已完成；添加备忘 TA 会在聊天里回应追问，还能概率催办提醒（开关 + 概率可调，每天最多 1 条）、偶尔帮你勾掉最旧一条</div>
           <div class="lic-li">【喝水】今日杯数进度环 + 近 7 天柱状图，目标杯数 / 杯量自定义；TA 定时催喝水、达标夸奖，战报可发到聊天</div>
           <div class="lic-li">【吃什么】随机抽菜或转盘抽取，多菜单管理与批量编辑，「问 TA」把菜名发到聊天征求意见；饭点有吃饭提醒（概率可调）</div>
           <div class="lic-li">【存钱罐】存取 + 多个小心愿目标（可请 TA 当监督人），25% / 50% / 75% 进度里程碑庆祝，TA 碎碎念回应与偷偷塞硬币彩蛋</div>
@@ -16747,7 +16747,7 @@ const EXCLUDE = ['contacts', 'active-contact', 'feed-posts', 'migrated-v1', 'js-
 'gdec-members', 'gdec-history', 'gdec-settings', 'gdec-global-migrated',
 'pomo-cfg', 'pomo-today', 'pomo-total', 'pomo-msgs', 'pomo-send-chat', 'pomo-bell',
 'pomo-companion', 'pomo-companion-log', 'pomo-cmp-usecards',
-'memo-app-items', 'memo-app-send', 'memo-app-global-migrated',
+'memo-app-items', 'memo-app-send', 'memo-app-global-migrated', 'memo-app-remind',
 'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker',
 'full-beauty-schemes', 'beauty-undo-stack', 'ver-update-ack-ts', 'ver-update-notify',
 'call-active'];
@@ -62823,6 +62823,9 @@ const DEF_MEMO_ASK = [
 '又记下一件：「{m}」，什么时候开始？',
 '「{m}」……记下了，可别让我催你哦'
 ];
+const DEF_MEMO_REMIND = ['{m}——还躺在备忘录里哦，什么时候做呀？', '翻到你的备忘：「{m}」，别忘了它', '「{m}」还没完成呢，我先帮你记着', '叮——备忘提醒：「{m}」，要开始了吗？'];
+const DEF_MEMO_REMIND_DUE = ['「{m}」今天到期啦，别忘了', '提醒你：「{m}」就是今天哦', '「{m}」今天截止，来得及，快去吧'];
+const DEF_MEMO_REMIND_OVER = ['「{m}」已经过期 {n} 天了哦，今天补上吧', '「{m}」过期 {n} 天啦，要不清掉或改个日子？', '{n} 天前记的「{m}」，还打算做吗？'];
 const host = (document.getElementById('page-phone') || {}).parentNode || document.body;
 const memoApp = document.createElement('div');
 memoApp.className = 'app'; memoApp.setAttribute('data-app', 'memo'); memoApp.setAttribute('data-desk-widget', 'app-memo');
@@ -62844,12 +62847,24 @@ memoPage.innerHTML =
 '<div class="memo-toolbar"><span class="memo-count" id="memo-count"></span><button class="memo-cleardone" id="memo-cleardone">清已完成</button></div>' +
 '<div class="memo-list" id="memo-list"></div>' +
 '<div class="memo-empty" id="memo-empty">还没有备忘<br>想做的事、要买的东西、突然的念头<br>都可以写在这里</div>' +
-'<div class="memo-manage"><button class="memo-send-btn" id="memo-send">完成发到聊天：关</button></div>' +
+'<div class="memo-manage"><button class="memo-send-btn" id="memo-send">完成发到聊天：关</button>' +
+'<button class="memo-send-btn" id="memo-remind">备忘提醒：开</button>' +
+'<button class="memo-send-btn" id="memo-remind-prob">提醒概率 2%</button></div>' +
 '</div>';
 host.appendChild(memoPage);
 function memoItems() { const s = gStore(); if (!s) return []; try { const a = JSON.parse(s.get('memo-app-items') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function memoSave(a) { const s = gStore(); if (s) try { s.set('memo-app-items', JSON.stringify(a)); } catch (e) {} }
 function memoSendOn() { const s = gStore(); try { return s.get('memo-app-send') === '1'; } catch (e) { return false; } }
+function memoRemindCfg() {
+const s = gStore(); let o = {};
+try { o = JSON.parse((s && s.get('memo-app-remind')) || '{}') || {}; } catch (e) { o = {}; }
+const p = parseInt(o.prob, 10);
+return { en: o.en !== 0, prob: isNaN(p) ? 2 : Math.max(0, Math.min(100, p)), done: typeof o.done === 'string' ? o.done : '' };
+}
+function memoRemindSetCfg(patch) {
+const s = gStore(); if (!s) return;
+try { s.set('memo-app-remind', JSON.stringify(Object.assign(memoRemindCfg(), patch))); } catch (e) {}
+}
 function memoPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function memoClip(t, n) { return (t || '').length > n ? (t || '').slice(0, n) + '…' : (t || ''); }
 function memoDayStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -63085,6 +63100,60 @@ if (s) try { s.set('memo-app-send', on ? '1' : '0'); } catch (e) {}
 memoSendBtn.textContent = '完成发到聊天：' + (on ? '开' : '关');
 });
 }
+const memoRemindBtn = document.getElementById('memo-remind');
+const memoRemindProbBtn = document.getElementById('memo-remind-prob');
+function memoRenderRemind() {
+const c = memoRemindCfg();
+if (memoRemindBtn) memoRemindBtn.textContent = '备忘提醒：' + (c.en ? '开' : '关');
+if (memoRemindProbBtn) memoRemindProbBtn.textContent = '提醒概率 ' + c.prob + '%';
+}
+function memoRemindFire() {
+const undone = memoItems().filter(x => !x.done);
+if (!undone.length) return;
+const over = undone.filter(x => memoUrgent(x) === 'overdue');
+const due = undone.filter(x => memoUrgent(x) === 'today');
+const stale = undone.filter(x => !memoUrgent(x) && Date.now() - (x.ts || 0) > 2 * 86400000);
+const pool = over.length ? over : (due.length ? due : (stale.length ? stale : undone));
+const it = pool[Math.floor(Math.random() * pool.length)];
+const bank = over.length ? DEF_MEMO_REMIND_OVER : (due.length ? DEF_MEMO_REMIND_DUE : DEF_MEMO_REMIND);
+const text = memoPick(bank).replace('{m}', memoClip(it.t || '', 16)).replace('{n}', String(memoOverdueDays(it.due || memoDayStr(new Date()))));
+if (window.chatAddIn) { try { window.chatAddIn(text, { tag: '备忘提醒' }); } catch (e) {} }
+vibrate([80, 60, 80]);
+memoRemindSetCfg({ done: memoDayStr(new Date()) }); // 发出即标记，每天最多 1 条
+}
+function memoRemindTick() {
+try {
+if (!window.chatAddIn) return;
+const c = memoRemindCfg();
+if (!c.en || c.prob <= 0) return;
+const h = new Date().getHours(); if (h >= 23 || h < 6) return; // 深夜静默，同吃饭提醒
+if (c.done === memoDayStr(new Date())) return; // 每天最多 1 条
+if (Math.random() * 100 >= c.prob) return;
+memoRemindFire();
+} catch (e) {}
+}
+memoRenderRemind();
+if (memoRemindBtn) memoRemindBtn.addEventListener('click', () => {
+if (editingNow()) return;
+const on = !memoRemindCfg().en;
+memoRemindSetCfg({ en: on ? 1 : 0 }); memoRenderRemind();
+toast(on ? '已开启：TA 会偶尔在聊天里提醒你的备忘' : '已关闭：TA 不再提醒备忘');
+});
+if (memoRemindProbBtn) memoRemindProbBtn.addEventListener('click', () => {
+if (editingNow()) return;
+if (!window.openModal) return;
+window.openModal('提醒触发概率（%）', String(memoRemindCfg().prob), (v) => {
+if (v === null || v === '') return;
+const n = parseInt(v, 10);
+if (isNaN(n) || n < 0 || n > 100) { toast('请输入 0-100 的整数'); return; }
+memoRemindSetCfg({ prob: n }); memoRenderRemind();
+toast(n <= 0 ? '已设置：基本不会触发' : '已设置：每 4 分钟掷一次，每天最多提醒 1 条');
+});
+});
+window.memoRemindTickNow = memoRemindTick; // 手动/回归验证触发口（同 triggerTaInviteNow 惯例）
+setTimeout(memoRemindTick, 60000);
+setInterval(memoRemindTick, 240000); // 每 4 分钟一掷（同吃饭提醒），命中且当天未提醒过才发
+document.addEventListener('mochi-fg-resume', function () { setTimeout(memoRemindTick, 2000 + Math.floor(Math.random() * 4000)); }); // 回前台补触发（同 ta-ask 通道）
 document.addEventListener('contact-switched', () => { if (!memoPage.hidden) memoRender(); });
 })();
 } catch (__e) { try { console.error("[JS] memo-app.js", __e && __e.message || __e); } catch (x) {} if (window.__jsErrors) window.__jsErrors.push(String(__e && __e.message || __e)); } })();
@@ -80934,4 +81003,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq9807b -->
+<!-- __MOCHI_EOF__ mtq9p7iu -->

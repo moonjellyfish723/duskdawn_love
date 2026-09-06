@@ -36,7 +36,8 @@
 .mm-del { color:var(--ink-soft,#c0c0c0); }
 .mm-del svg { width:13px; height:13px; }
 .memo-empty { text-align:center; font-size:13px; color:var(--ink-soft,#aaa); padding:36px 0 8px; line-height:1.9; }
-.memo-manage { text-align:center; margin-top:14px; }
+/* #238 备忘提醒开关/概率两钮加入后改 flex 换行排列（窄屏挤不下三个时自动折行居中） */
+.memo-manage { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; }
 /* ---- 「完成发到聊天」开关（v3.13.x：此前无任何样式、渲染成系统默认按钮） ---- */
 .memo-send-btn { font-size:12px; color:var(--ink-soft,#888); background:rgba(255,255,255,.7); border:1px solid rgba(0,0,0,.12); border-radius:16px; padding:6px 16px; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
 .memo-send-btn:active { background:rgba(0,0,0,.06); }
