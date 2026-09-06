@@ -1291,6 +1291,33 @@
       window.addEventListener('orientationchange', onIosVvEvent);
       // v3.26.x #148：旋转后 env(safe-area-inset-top) 可能变化，失效探针缓存重测
       window.addEventListener('orientationchange', function () { try { _envTopCache = -1; } catch (e) {} });
+      // v3.26.x #213：视口时间线环形缓冲（每秒 1 拍，保留 60 条≈1 分钟）——
+      // 键盘开合/工具条伸缩/白带出现等瞬态过程回放用：屏幕适配诊断报告尾部
+      // dump 时间线，「出问题前发生了什么」直接可读（键盘 +350 / 突发 -59 等）。
+      var _vvLog = [];
+      function vvLogPush() {
+        try {
+          if (document.visibilityState !== 'visible') return;
+          var ih2 = window.innerHeight || 0;
+          var prev = _vvLog.length ? _vvLog[_vvLog.length - 1].ih : ih2;
+          _vvLog.push({ t: Date.now(), iw: window.innerWidth || 0, ih: ih2,
+            vh: _vv ? Math.round(_vv.height) : 0, sc: _vv ? +(+_vv.scale).toFixed(2) : 1,
+            kb: _kbActive ? 1 : 0, fs: _fsLike() ? 1 : 0 });
+          if (_vvLog.length > 60) _vvLog.shift();
+        } catch (e) {}
+      }
+      setInterval(vvLogPush, 1000);
+      window.__mochiVvTimeline = function () {
+        try {
+          if (!_vvLog.length) return '（暂无记录）';
+          return _vvLog.map(function (e, i) {
+            const d = new Date(e.t);
+            const hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+            const dl = i > 0 ? (e.ih - _vvLog[i - 1].ih) : 0;
+            return hm + ' inner:' + e.iw + '×' + e.ih + ' vv:' + e.vh + ' sc:' + e.sc + ' kb:' + e.kb + ' fs:' + e.fs + (i > 0 && dl !== 0 ? ' Δ' + (dl > 0 ? '+' : '') + dl : '');
+          }).join(' | ');
+        } catch (e) { return '(时间线采集失败)'; }
+      };
       window.addEventListener('pageshow', onIosVvEvent);
       document.addEventListener('visibilitychange', onIosVvEvent);
       setInterval(function () {

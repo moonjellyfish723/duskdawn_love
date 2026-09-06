@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788704933135">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.492</b></span>
-        <span class="sv-deploy">部署于 2026-09-06 22:28<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788708577793">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.494</b></span>
+        <span class="sv-deploy">部署于 2026-09-06 23:29<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.492</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.494</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.492</span>
+              <span class="lic-ver">v3.26.494</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -15338,6 +15338,7 @@ kb: (function () { try { return window.__mochiIosKb ? window.__mochiIosKb() : nu
 };
 inp.diff = inp.screenH && inp.innerH ? inp.screenH - inp.innerH : 0;
 inp.iosMajor = (function () { try { var a = /OS (\d+)_/.exec(navigator.userAgent || ''); var b = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return Math.max(a ? +a[1] : 0, b ? +b[1] : 0); } catch (e) { return 0; } })();
+inp.osLine = (function () { try { var m1 = /iPhone OS (\d+_\d+(?:_\d+)?) like/.exec(navigator.userAgent || ''); var m2 = /Version\/(\d+\.\d+)/.exec(navigator.userAgent || ''); return 'iOS ' + (m1 ? m1[1].replace(/_/g, '.') : '?') + ' / Safari ' + (m2 ? m2[1] : '?'); } catch (e) { return '未知'; } })();
 inp.force = (function () { try { return localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (e) { return false; } })();
 return inp;
 }
@@ -15360,6 +15361,7 @@ L.push('屏幕=' + inp.screenW + '×' + inp.screenH + '  DPR=' + inp.dpr);
 L.push('布局视口(inner)=' + inp.innerW + '×' + inp.innerH + '  可视(vv)=' + inp.vvW + '×' + inp.vvH + ' @scale=' + inp.scale.toFixed(2));
 L.push('standalone=' + !!inp.standalone + '  全屏模式=' + (inp.fsActive ? '开' : '关') + '  方向=' + (inp.orientation || '?') + '（旋转后建议再测一次）');
 L.push('html类：' + inp.htmlClass);
+L.push('系统=' + (inp.osLine || '未知') + '（形态判定依赖系统版本，#184/#200）');
 L.push('env(safe-area-inset-bottom)=' + inp.envBottom + 'px  视口平移=offTop:' + (inp.vvOffTop || 0) + '/offLeft:' + (inp.vvOffLeft || 0));
 L.push('键盘残留=' + (inp.kb ? ('kbActive=' + !!inp.kb.kbActive + ' 锁=' + !!inp.kb.docLocked + ' 基线 inner/vv=' + inp.kb.fullInner + '/' + inp.kb.fullVv) : 'n/a'));
 L.push('');
@@ -15379,6 +15381,13 @@ const sig = { v: sdVerCache, form: sigForm, scale: inp.scale, env: inp.envTop, v
 L.push('SIG ' + JSON.stringify(sig));
 L.push('');
 L.push('※ 发给开发者时请整段复制（含 ✗ 条目），可精准对号修复。');
+try {
+if (window.__mochiVvTimeline) {
+L.push('');
+L.push('== 近 60 秒视口时间线（键盘开合/缩放/白带瞬态回放）==');
+L.push(window.__mochiVvTimeline());
+}
+} catch (eT) {}
 return { text: L.join('\n'), findings: F, inp: inp };
 }
 function bindScreenDiag() {
@@ -33548,7 +33557,7 @@ st.querySelector('.stp-max').addEventListener('click', () => bump(1));
 val.addEventListener('change', () => {
 let v = parseFloat(val.value); if (!isFinite(v)) v = mn;
 v = Math.max(mn, Math.min(mx, v));
-v = sp < 1 ? Math.round(v / sp) * sp : Math.round(v);
+v = Math.round(v / sp) * sp; // 就近归整到步长（prob=5 时 42→40，与回复设置页 stepper 一致）
 val.value = fmt(v); save(val.value);
 });
 val.addEventListener('blur', () => {
@@ -79799,6 +79808,30 @@ _vv.addEventListener('resize', onIosVvEvent);
 window.addEventListener('resize', onIosVvEvent);
 window.addEventListener('orientationchange', onIosVvEvent);
 window.addEventListener('orientationchange', function () { try { _envTopCache = -1; } catch (e) {} });
+var _vvLog = [];
+function vvLogPush() {
+try {
+if (document.visibilityState !== 'visible') return;
+var ih2 = window.innerHeight || 0;
+var prev = _vvLog.length ? _vvLog[_vvLog.length - 1].ih : ih2;
+_vvLog.push({ t: Date.now(), iw: window.innerWidth || 0, ih: ih2,
+vh: _vv ? Math.round(_vv.height) : 0, sc: _vv ? +(+_vv.scale).toFixed(2) : 1,
+kb: _kbActive ? 1 : 0, fs: _fsLike() ? 1 : 0 });
+if (_vvLog.length > 60) _vvLog.shift();
+} catch (e) {}
+}
+setInterval(vvLogPush, 1000);
+window.__mochiVvTimeline = function () {
+try {
+if (!_vvLog.length) return '（暂无记录）';
+return _vvLog.map(function (e, i) {
+const d = new Date(e.t);
+const hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+const dl = i > 0 ? (e.ih - _vvLog[i - 1].ih) : 0;
+return hm + ' inner:' + e.iw + '×' + e.ih + ' vv:' + e.vh + ' sc:' + e.sc + ' kb:' + e.kb + ' fs:' + e.fs + (i > 0 && dl !== 0 ? ' Δ' + (dl > 0 ? '+' : '') + dl : '');
+}).join(' | ');
+} catch (e) { return '(时间线采集失败)'; }
+};
 window.addEventListener('pageshow', onIosVvEvent);
 document.addEventListener('visibilitychange', onIosVvEvent);
 setInterval(function () {
@@ -80271,4 +80304,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtpwqfin -->
+<!-- __MOCHI_EOF__ mtpywjr5 -->

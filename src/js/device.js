@@ -2130,6 +2130,7 @@ window.mochiViewportForm = function (sig) {
     };
     inp.diff = inp.screenH && inp.innerH ? inp.screenH - inp.innerH : 0;
     inp.iosMajor = (function () { try { var a = /OS (\d+)_/.exec(navigator.userAgent || ''); var b = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return Math.max(a ? +a[1] : 0, b ? +b[1] : 0); } catch (e) { return 0; } })();
+    inp.osLine = (function () { try { var m1 = /iPhone OS (\d+_\d+(?:_\d+)?) like/.exec(navigator.userAgent || ''); var m2 = /Version\/(\d+\.\d+)/.exec(navigator.userAgent || ''); return 'iOS ' + (m1 ? m1[1].replace(/_/g, '.') : '?') + ' / Safari ' + (m2 ? m2[1] : '?'); } catch (e) { return '未知'; } })();
     // #209：用户「顶部避让修正」声明（#186：声明=覆盖形态）——此前漏传，判定器
     // force 分支在真实采集路径永不命中
     inp.force = (function () { try { return localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (e) { return false; } })();
@@ -2156,6 +2157,7 @@ window.mochiViewportForm = function (sig) {
     L.push('布局视口(inner)=' + inp.innerW + '×' + inp.innerH + '  可视(vv)=' + inp.vvW + '×' + inp.vvH + ' @scale=' + inp.scale.toFixed(2));
     L.push('standalone=' + !!inp.standalone + '  全屏模式=' + (inp.fsActive ? '开' : '关') + '  方向=' + (inp.orientation || '?') + '（旋转后建议再测一次）');
     L.push('html类：' + inp.htmlClass);
+    L.push('系统=' + (inp.osLine || '未知') + '（形态判定依赖系统版本，#184/#200）');
     L.push('env(safe-area-inset-bottom)=' + inp.envBottom + 'px  视口平移=offTop:' + (inp.vvOffTop || 0) + '/offLeft:' + (inp.vvOffLeft || 0));
     L.push('键盘残留=' + (inp.kb ? ('kbActive=' + !!inp.kb.kbActive + ' 锁=' + !!inp.kb.docLocked + ' 基线 inner/vv=' + inp.kb.fullInner + '/' + inp.kb.fullVv) : 'n/a'));
     L.push('');
@@ -2177,6 +2179,13 @@ window.mochiViewportForm = function (sig) {
     L.push('SIG ' + JSON.stringify(sig));
     L.push('');
     L.push('※ 发给开发者时请整段复制（含 ✗ 条目），可精准对号修复。');
+    try {
+      if (window.__mochiVvTimeline) {
+        L.push('');
+        L.push('== 近 60 秒视口时间线（键盘开合/缩放/白带瞬态回放）==');
+        L.push(window.__mochiVvTimeline());
+      }
+    } catch (eT) {}
     return { text: L.join('\n'), findings: F, inp: inp };
   }
   function bindScreenDiag() {

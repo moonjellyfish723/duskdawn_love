@@ -1,8 +1,14 @@
+### 2026-09-06 02:3x（#213 屏幕适配诊断增强收官：视口时间线回放+系统版本行；已构建）
+* [AI-B 域]（**改动文件：src/js/mobile-adapt.js（isIOS 块内视口时间线环形缓冲 60 条/每秒 1 拍 + __mochiVvTimeline 导出）、src/js/device.js（屏幕适配报告尾部时间线回放段 + 基础节系统版本行 osLine）、build.mjs（FIX_SENTINELS 4 条）、FIX-REGRESSION.md（#213 行）**）。
+* 定位能力至此闭环：设备兼容诊断（全局+错误环自动监视）→ 屏幕适配诊断（实测+七判定+歧义引导+时间线回放）→ 功能诊断（25 项逐个打开）。瞬态过程（键盘/白带出现前后）从「丢失」变「可回放」。
+* 验证：node --check 过；--check-sentinels 486 全绿。
+* 待真机：任意 iOS 机型报告尾部出现时间线；打字/开关键盘可见 kb 跳变与 Δ 高度。
+
 ### 2026-09-06 22:4x（群聊回复概率/时间可调 + 群聊美化对齐聊天美化（圆角/时间色/正在输入+美化方案整套））· 未构建·本会话直接受理本任务
-- [AI-A 域·跨域声明：本口直接改 AI-A 名下 group-chat.js/group-chat.css + AI-B 名下 dark.css，用户直接指派本任务]（**改动文件：src/js/group-chat.js（群聊设置面板 renderMainSettingsView 新增「群聊回复」段 gc-prob/gc-rs-min/gc-rs-max 三个 stepper，读 window.groupChatCfg、写 window.saveReplyCfg（gc-* 全局=全部联系人）；GC_BEAUTY_DEFAULTS 新增 bubble-radius/time-ink/typing-ink、GC_DARK_DEFAULTS 补 time-ink、applyGcBeauty 补三个 CSS 变量、新增 GC_BUBBLE_RADII 常量与 pickGcBubbleRadius 滑块、renderBeautyView 新增圆角/时间轴颜色/正在输入颜色三行+「美化方案」段（保存/管理）；新增群聊美化方案整套模块：window.saveGcBeautyScheme/openGcBeautySchemes（保存/应用/改名/删除/预览还原/导出/导入，键 gc-beauty-schemes 存全局，GC_BEAUTY_KEYS 覆盖 gc-beauty 全部子键））、src/css/group-chat.css（新增 .gc-set-stepper 样式）、src/css/dark.css（.gc-set-stepper .txt 暗色）**；构建状态：**未构建**——只改 src，构建权留构建者收口时随库打入）。
+- [AI-A 域·跨域声明：本口直接改 AI-A 名下 group-chat.js/group-chat.css + AI-B 名下 dark.css，用户直接指派本任务]（**改动文件：src/js/group-chat.js（群聊设置面板 renderMainSettingsView 新增「群聊回复」段 gc-prob/gc-rs-min/gc-rs-max 三个 stepper，读 window.groupChatCfg、写 window.saveReplyCfg（gc-* 全局=全部联系人）；GC_BEAUTY_DEFAULTS 新增 bubble-radius/time-ink/typing-ink、GC_DARK_DEFAULTS 补 time-ink、applyGcBeauty 补三个 CSS 变量、新增 GC_BUBBLE_RADII 常量与 pickGcBubbleRadius 滑块、renderBeautyView 新增圆角/时间轴颜色/正在输入颜色三行+「美化方案」段（保存/管理）；新增群聊美化方案整套模块：window.saveGcBeautyScheme/openGcBeautySchemes（保存/应用/改名/删除/预览还原/导出/导入，键 gc-beauty-schemes 存全局，GC_BEAUTY_KEYS 覆盖 gc-beauty 全部子键））、src/css/group-chat.css（新增 .gc-set-stepper 样式）、src/css/dark.css（.gc-set-stepper .txt 暗色）、tools/verify-gc-settings.mjs（新增 26 项验证脚本）**；构建状态：**未构建**——只改 src，构建权留构建者收口时随库打入）。
 - 需求/反馈：①用户要能在「群里的设置」里直接调全部联系人的群聊回复概率和时间（此前 gc-* 键存在但只在全局回复设置页有 UI）；②群聊美化是「阉割版」，要对齐聊天美化。
 - 方案：①群聊设置面板新增「群聊回复」段，3 个 stepper（每个联系人回复概率%/回复速度最短/最长秒），复用全站 .stepper 交互，全局生效=全部联系人；附说明提示完整项在「设置→回复设置→群聊被动回复」。②群聊美化补三视觉项（气泡边缘圆角 滑块、时间轴颜色、正在输入颜色）并完整移植聊天美化方案（保存/应用/改名/删除/预览/导出/导入）。
-- 验证：node --check 过；--check-sentinels 483/483 哑 0 sw 12/12（未碰他人锚点）。栈内另有 #221 贪吃蛇待下口构建。
+- 验证：node --check 过；--check-sentinels 483/483 哑 0 sw 12/12（未碰他人锚点）；**无头端到端 verify-gc-settings 26/26**（临时副本构建含本批改动：R1-R6 群聊设置面板三 stepper 出现且 ±/输入即写全局 gc-*（概率 42→40 就近归整/最短 1→2/最长 40→39）；R7-R10 美化视图五入口齐全；R11-R13 应用方案即时改 --chat-bubble-radius/--msg-time-ink/--typing-ink；R14 写全局 gc-beauty 持久化；R15-R16 存方案→管理列表出现且 应用/改名/删除/导出/导入/预览 齐全）。测试中发现并修复一处 stepper 输入归整偏差（概率 step=5 时手输 42 未就近归整，已改 Math.round(v/sp)*sp 与全站回复设置页一致）。栈内另有 #221 贪吃蛇待下口构建。
 - 【真机:待验证】①群聊右上角三点→群聊设置→「群聊回复」可调概率/速度（数字直接点输、±可用），改完所有成员回复节奏随动；②美化→气泡边缘圆角拖动即时变；时间轴颜色/正在输入颜色可选；③美化→保存当前为美化方案→管理→应用/改名/删除/导出/导入全可用，应用后群聊立即生效、所有桌面通用。
 
 ### 2026-09-06 20:4x（#219 背景模糊/遮罩失效 + #220 打开聊天消息先跳动——小米15Pro/Chrome 151 报障，用户明说其他机型也有；已构建·sw mochi-mtpt0eky·本次构建者：AI-B=本会话）
