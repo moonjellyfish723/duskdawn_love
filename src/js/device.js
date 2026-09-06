@@ -1470,17 +1470,96 @@
     try { if (typeof window.toast === 'function') { window.toast(msg); return; } } catch (e) {}
     ccToast(msg);
   }
-  // ===== v3.25.x：导出 txt =====
-  // 诊断文本变长后，部分安卓 IAB/WebView 剪贴板对大文本静默截断或失败——
-  // 下载成文件再经聊天 App 发送最稳。Blob + a[download]（iOS 13+/安卓 Chrome
-  // 均支持）；个别内核无下载行为时 hint 里给「用复制/长按选字」兜底提示。
-  function exportTxt(text) {
+  // ===== v3.26.x #227：导出 docx（原导出 txt，用户要求改 docx——Word/WPS 直接打开转发）=====
+  // 下载成文件再经聊天 App 发送最稳的诉求不变（部分安卓 IAB/WebView 剪贴板对大文本
+  // 静默截断）。docx=ZIP 容器的 OOXML：零依赖手写「存储式 ZIP（不压缩）+CRC32」打包
+  // 三件套（[Content_Types].xml / _rels/.rels / word/document.xml），正文一行一段落、
+  // XML 转义，等宽+雅黑字体保证报告数值对齐可读；不引第三方库，保持单文件构建。
+  function crc32(bytes) {
+    let table = crc32._t;
+    if (!table) {
+      table = crc32._t = new Int32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        table[n] = c;
+      }
+    }
+    let crc = -1;
+    for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+    return (crc ^ -1) >>> 0;
+  }
+  function buildDocxBlob(text) {
+    const enc = new TextEncoder();
+    const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    const paras = String(text).split(/\r\n|\r|\n/).map(function (line) {
+      return '<w:p><w:r><w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="Microsoft YaHei"/>'
+        + '<w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
+        + '<w:t xml:space="preserve">' + esc(line) + '</w:t></w:r></w:p>';
+    }).join('');
+    const XMLHead = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const files = [
+      { name: '[Content_Types].xml', data: enc.encode(XMLHead
+        + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        + '<Default Extension="xml" ContentType="application/xml"/>'
+        + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        + '</Types>') },
+      { name: '_rels/.rels', data: enc.encode(XMLHead
+        + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        + '</Relationships>') },
+      { name: 'word/document.xml', data: enc.encode(XMLHead
+        + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+        + paras
+        + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
+        + '<w:pgMar w:top="1000" w:right="900" w:left="900" w:bottom="1000" w:header="720" w:footer="720" w:gutter="0"/>'
+        + '</w:sectPr></w:body></w:document>') }
+    ];
+    // 手写 ZIP（全 STORED 不压缩）：本地文件头+数据 → 中央目录 → EOCD
+    const d = new Date();
+    const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >>> 1);
+    const dosDate = (((d.getFullYear() - 1980) & 0x7F) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const chunks = [], cdChunks = [];
+    let offset = 0;
+    files.forEach(function (f) {
+      const nameB = enc.encode(f.name), crc = crc32(f.data), lb = f.data.length;
+      const lh = new Uint8Array(30 + nameB.length);
+      const v = new DataView(lh.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+      v.setUint16(8, 0, true); v.setUint16(10, dosTime, true); v.setUint16(12, dosDate, true);
+      v.setUint32(14, crc, true); v.setUint32(18, lb, true); v.setUint32(22, lb, true);
+      v.setUint16(26, nameB.length, true);
+      lh.set(nameB, 30);
+      chunks.push(lh, f.data);
+      const cd = new Uint8Array(46 + nameB.length);
+      const cv = new DataView(cd.buffer);
+      cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true);
+      cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true); cv.setUint32(20, lb, true); cv.setUint32(24, lb, true);
+      cv.setUint16(28, nameB.length, true);
+      cv.setUint32(42, offset, true);
+      cd.set(nameB, 46);
+      cdChunks.push(cd);
+      offset += lh.length + lb;
+    });
+    const cdSize = cdChunks.reduce(function (s, c) { return s + c.length; }, 0);
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+    return new Blob(chunks.concat(cdChunks, [eocd]),
+      { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  }
+  function exportDocx(text, basePrefix) {
     try {
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const blob = buildDocxBlob(text);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'mochi-diag-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.txt';
+      a.download = (basePrefix || 'mochi-diag-') + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.docx';
       document.body.appendChild(a);
       a.click();
       try {
@@ -1591,7 +1670,7 @@
       // ② 自动复制走 copyText()——对隐藏 textarea 调 focus() 会先弹起输入法、
       //    800ms 后随元素移除又收起，手机上表现为「弹输入法又关 + 灰屏」。
       // 取消自动复制后：打开只读文本不再碰剪贴板、不再 focus textarea，输入法不再打扰。
-      // 需要发给开发者时，由用户点【复制】/【导出txt】自行触发。
+      // 需要发给开发者时，由用户点【复制】/【导出docx】自行触发。
       if (window.openModal) {
         ctl = window.openModal(DIAG_TITLE, cur, function () { closed = true; }, {
           noInput: true,
@@ -1609,8 +1688,8 @@
             fn: function (c) {
               const txt = c ? c.text() : cur;
               // v3.27.x：诊断文本超长时剪贴板可能静默截断（代码注释里也承认过），
-              // 先提示用导出 txt 更稳，再照常复制（用户仍可选择复制）
-              const TIP_LONG = '文本较长（' + Math.round(txt.length / 1000) + 'KB），手机剪贴板可能截断，建议优先【导出txt】。';
+              // 先提示用导出 docx 更稳，再照常复制（用户仍可选择复制）
+              const TIP_LONG = '文本较长（' + Math.round(txt.length / 1000) + 'KB），手机剪贴板可能截断，建议优先【导出docx】。';
               if (c && c.hint && txt.length > 8000) c.hint(TIP_LONG);
               copyText(txt).then(function (ok2) {
                 const m2 = ok2 ? TIP_OK : '复制失败，请长按选字手动复制。';
@@ -1619,14 +1698,15 @@
               });
             }
           },
-          // v3.25.x：导出 txt——复制失败/截断时的兜底，下载后经聊天 App 发送
+          // #227：导出 docx（原 txt）——复制失败/截断时的兜底，下载后经聊天 App 发送；
+          // Word/WPS 直接打开，数值报告不乱码不错行
           exportBtn: {
-            label: '导出txt',
+            label: '导出docx',
             fn: function (c) {
-              const okDl = exportTxt(c ? c.text() : cur);
-              const m3 = okDl ? '已开始下载 txt 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请用【复制】或长按选字手动复制。';
+              const okDl = exportDocx(c ? c.text() : cur);
+              const m3 = okDl ? '已开始下载 docx 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请用【复制】或长按选字手动复制。';
               if (c && c.hint) c.hint(m3);
-              diagToast(okDl ? '已开始下载 txt 文件' : '当前内核不支持下载，请用【复制】复制');
+              diagToast(okDl ? '已开始下载 docx 文件' : '当前内核不支持下载，请用【复制】复制');
             }
           }
         });
@@ -2269,7 +2349,19 @@ window.mochiViewportForm = function (sig) {
           r.text += '\n' + sdHistTimeline();
           sdArchive(r, 'manual');
           if (window.openModal) {
-            window.openModal('屏幕适配诊断', r.text, null, { noInput: true, textarea: true, textareaRows: 16, big: true });
+            // #227：补「导出docx」按钮——此前本弹窗只有自动复制，报告长时手机剪贴板
+            // 可能截断，走文件转发最稳（docx 用 Word/WPS 打开不乱码）
+            window.openModal('屏幕适配诊断', r.text, null, {
+              noInput: true, textarea: true, textareaRows: 16, big: true,
+              exportBtn: {
+                label: '导出docx',
+                fn: function (c) {
+                  const okDl = exportDocx(c ? c.text() : r.text, 'mochi-screen-diag-');
+                  const m4 = okDl ? '已开始下载 docx 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请长按报告手动复制。';
+                  sdToast(okDl ? '已开始下载 docx 文件' : m4);
+                }
+              }
+            });
           }
           sdCopy(r.text).then(function (ok) { sdToast(ok ? '报告已复制到剪贴板，可直接发给开发者' : '报告已弹出，请手动全选复制'); });
         }, Math.max(0, 60 - (Date.now() - t0)));

@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788714518232">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.500</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 01:08<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788715075504">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.501</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 01:17<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.500</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.501</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.500</span>
+              <span class="lic-ver">v3.26.501</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -11251,9 +11251,9 @@ transition-duration: .01ms !important;
         <button class="modal-file" id="modal-file" hidden>从文件导入</button>
         <input type="file" id="modal-file-input" accept=".txt,.json,text/plain,application/json" style="display:none">
         <div class="modal-btns">
-          <!-- v3.25.x：导出txt——诊断文本变长后部分手机剪贴板复制不全，下载文件兜底（opts.exportBtn） -->
+          <!-- v3.25.x：导出按钮——诊断文本变长后部分手机剪贴板复制不全，下载文件兜底（opts.exportBtn）；#227 起 txt 改 docx（Word/WPS 直开） -->
           <!-- v3.26.x：补 type="button"——全站唯一漏写类型的按钮组；缺 type 默认是 submit，在个别 webview 里点【复制/导出/取消/确定】可能触发表单默认行为导致整页刷新（用户反馈） -->
-          <button type="button" class="modal-btn copy" id="modal-export" hidden>导出txt</button>
+          <button type="button" class="modal-btn copy" id="modal-export" hidden>导出docx</button>
           <button type="button" class="modal-btn copy" id="modal-copy" hidden>复制</button>
           <button type="button" class="modal-btn cancel" id="modal-cancel">取消</button>
           <button type="button" class="modal-btn ok" id="modal-ok">确定</button>
@@ -14842,13 +14842,90 @@ function diagToast(msg) {
 try { if (typeof window.toast === 'function') { window.toast(msg); return; } } catch (e) {}
 ccToast(msg);
 }
-function exportTxt(text) {
+function crc32(bytes) {
+let table = crc32._t;
+if (!table) {
+table = crc32._t = new Int32Array(256);
+for (let n = 0; n < 256; n++) {
+let c = n;
+for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+table[n] = c;
+}
+}
+let crc = -1;
+for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+return (crc ^ -1) >>> 0;
+}
+function buildDocxBlob(text) {
+const enc = new TextEncoder();
+const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+const paras = String(text).split(/\r\n|\r|\n/).map(function (line) {
+return '<w:p><w:r><w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="Microsoft YaHei"/>'
++ '<w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>'
++ '<w:t xml:space="preserve">' + esc(line) + '</w:t></w:r></w:p>';
+}).join('');
+const XMLHead = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+const files = [
+{ name: '[Content_Types].xml', data: enc.encode(XMLHead
++ '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
++ '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
++ '<Default Extension="xml" ContentType="application/xml"/>'
++ '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
++ '</Types>') },
+{ name: '_rels/.rels', data: enc.encode(XMLHead
++ '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
++ '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
++ '</Relationships>') },
+{ name: 'word/document.xml', data: enc.encode(XMLHead
++ '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
++ paras
++ '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
++ '<w:pgMar w:top="1000" w:right="900" w:left="900" w:bottom="1000" w:header="720" w:footer="720" w:gutter="0"/>'
++ '</w:sectPr></w:body></w:document>') }
+];
+const d = new Date();
+const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >>> 1);
+const dosDate = (((d.getFullYear() - 1980) & 0x7F) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+const chunks = [], cdChunks = [];
+let offset = 0;
+files.forEach(function (f) {
+const nameB = enc.encode(f.name), crc = crc32(f.data), lb = f.data.length;
+const lh = new Uint8Array(30 + nameB.length);
+const v = new DataView(lh.buffer);
+v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+v.setUint16(8, 0, true); v.setUint16(10, dosTime, true); v.setUint16(12, dosDate, true);
+v.setUint32(14, crc, true); v.setUint32(18, lb, true); v.setUint32(22, lb, true);
+v.setUint16(26, nameB.length, true);
+lh.set(nameB, 30);
+chunks.push(lh, f.data);
+const cd = new Uint8Array(46 + nameB.length);
+const cv = new DataView(cd.buffer);
+cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+cv.setUint16(8, 0x0800, true);
+cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true);
+cv.setUint32(16, crc, true); cv.setUint32(20, lb, true); cv.setUint32(24, lb, true);
+cv.setUint16(28, nameB.length, true);
+cv.setUint32(42, offset, true);
+cd.set(nameB, 46);
+cdChunks.push(cd);
+offset += lh.length + lb;
+});
+const cdSize = cdChunks.reduce(function (s, c) { return s + c.length; }, 0);
+const eocd = new Uint8Array(22);
+const ev = new DataView(eocd.buffer);
+ev.setUint32(0, 0x06054b50, true);
+ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+return new Blob(chunks.concat(cdChunks, [eocd]),
+{ type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+function exportDocx(text, basePrefix) {
 try {
-const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+const blob = buildDocxBlob(text);
 const url = URL.createObjectURL(blob);
 const a = document.createElement('a');
 a.href = url;
-a.download = 'mochi-diag-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.txt';
+a.download = (basePrefix || 'mochi-diag-') + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.docx';
 document.body.appendChild(a);
 a.click();
 try {
@@ -14942,7 +15019,7 @@ copyBtn: {
 label: '复制',
 fn: function (c) {
 const txt = c ? c.text() : cur;
-const TIP_LONG = '文本较长（' + Math.round(txt.length / 1000) + 'KB），手机剪贴板可能截断，建议优先【导出txt】。';
+const TIP_LONG = '文本较长（' + Math.round(txt.length / 1000) + 'KB），手机剪贴板可能截断，建议优先【导出docx】。';
 if (c && c.hint && txt.length > 8000) c.hint(TIP_LONG);
 copyText(txt).then(function (ok2) {
 const m2 = ok2 ? TIP_OK : '复制失败，请长按选字手动复制。';
@@ -14952,12 +15029,12 @@ diagToast(ok2 ? '已复制到剪贴板' : '复制失败，请长按选字手动�
 }
 },
 exportBtn: {
-label: '导出txt',
+label: '导出docx',
 fn: function (c) {
-const okDl = exportTxt(c ? c.text() : cur);
-const m3 = okDl ? '已开始下载 txt 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请用【复制】或长按选字手动复制。';
+const okDl = exportDocx(c ? c.text() : cur);
+const m3 = okDl ? '已开始下载 docx 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请用【复制】或长按选字手动复制。';
 if (c && c.hint) c.hint(m3);
-diagToast(okDl ? '已开始下载 txt 文件' : '当前内核不支持下载，请用【复制】复制');
+diagToast(okDl ? '已开始下载 docx 文件' : '当前内核不支持下载，请用【复制】复制');
 }
 }
 });
@@ -15463,7 +15540,17 @@ r.text += '\n== 历史对比 ==\n' + sdHistCompare(r.inp);
 r.text += '\n' + sdHistTimeline();
 sdArchive(r, 'manual');
 if (window.openModal) {
-window.openModal('屏幕适配诊断', r.text, null, { noInput: true, textarea: true, textareaRows: 16, big: true });
+window.openModal('屏幕适配诊断', r.text, null, {
+noInput: true, textarea: true, textareaRows: 16, big: true,
+exportBtn: {
+label: '导出docx',
+fn: function (c) {
+const okDl = exportDocx(c ? c.text() : r.text, 'mochi-screen-diag-');
+const m4 = okDl ? '已开始下载 docx 文件（见浏览器下载列表），直接发送该文件即可。' : '当前内核不支持下载，请长按报告手动复制。';
+sdToast(okDl ? '已开始下载 docx 文件' : m4);
+}
+}
+});
 }
 sdCopy(r.text).then(function (ok) { sdToast(ok ? '报告已复制到剪贴板，可直接发给开发者' : '报告已弹出，请手动全选复制'); });
 }, Math.max(0, 60 - (Date.now() - t0)));
@@ -77436,8 +77523,6 @@ doReload();
 }
 const VER_ACK_KEY = 'xy-home-v2:ver-update-ack-ts';
 const VER_NOTIFY_KEY = 'xy-home-v2:ver-update-notify';
-const VER_SNOOZE_KEY = 'xy-home-v2:ver-update-snooze';
-const VER_SNOOZE_MS = 24 * 60 * 60 * 1000;
 let _verBarShown = false;
 function verAckTs() {
 try {
@@ -77460,18 +77545,13 @@ function verMarkNotify(onlineTs) {
 const n = Number(onlineTs);
 verLsSet(VER_NOTIFY_KEY, (n > 0 ? n : 0) + '|' + Date.now());
 }
-function verMarkSnooze() { verLsSet(VER_SNOOZE_KEY, String(Date.now())); }
-function verSnoozed(onlineTs) {
-const snoozeAt = Number(verLsGet(VER_SNOOZE_KEY)) || 0;
-if (snoozeAt && Date.now() - snoozeAt < VER_SNOOZE_MS) return true;
+function verSeen(onlineTs) {
 const last = verLsGet(VER_NOTIFY_KEY);
 if (!last) return false;
-const sep = last.indexOf('|');
-const lastTs = Number(last.slice(0, sep));
-const lastAt = Number(last.slice(sep + 1));
 const n = Number(onlineTs);
-const sameOrUnknown = !n || isNaN(n) || lastTs === n;
-return sameOrUnknown && lastAt > 0 && Date.now() - lastAt < VER_SNOOZE_MS;
+if (!n || isNaN(n)) return true;
+const lastTs = Number(String(last).split('|')[0]);
+return lastTs >= n;
 }
 function fetchJson(url, ms) {
 const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -77481,16 +77561,16 @@ return fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
 .catch(function (err) { if (timer) clearTimeout(timer); throw err; });
 }
 function showVerBar(onlineTs) {
-if (_verBarShown || !verShouldNotify(onlineTs) || verSnoozed(onlineTs)) return;
+if (_verBarShown || !verShouldNotify(onlineTs) || verSeen(onlineTs)) return;
 _verBarShown = true;
 verMarkNotify(onlineTs);
 const barEl = document.getElementById('ver-update-bar');
 if (!barEl) { toast('已检测到新版本，刷新页面即可更新'); return; }
 barEl.hidden = false;
 const actEl = document.getElementById('ver-update-refresh');
-if (actEl) actEl.onclick = function () { verMarkAck(onlineTs); verMarkSnooze(); refreshNow(); };
+if (actEl) actEl.onclick = function () { verMarkAck(onlineTs); refreshNow(); };
 const closeBtn = document.getElementById('ver-update-close');
-if (closeBtn) closeBtn.onclick = function () { verMarkAck(onlineTs); verMarkSnooze(); barEl.hidden = true; };
+if (closeBtn) closeBtn.onclick = function () { verMarkAck(onlineTs); barEl.hidden = true; };
 }
 (function () {
 const bar = document.getElementById('ver-update-bar');
@@ -80395,4 +80475,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq2fvfc -->
+<!-- __MOCHI_EOF__ mtq2rtf4 -->

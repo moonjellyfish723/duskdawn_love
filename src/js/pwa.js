@@ -51,17 +51,14 @@
   // 之后只对「比这个版本更新」的部署再提醒——一天多次部署每次都会提醒一次，不会一天只弹一次；
   // ② 弹条前若页面 data-build-ts 已等于线上 version.json ts，说明已是最新，跳过。
   const VER_ACK_KEY = 'xy-home-v2:ver-update-ack-ts';
-  // FIX 2026-09-07 #225 顶部更新条「一直重复提醒」（v3.26.x 按版本 ack 后用户复发报障）。残留三洞：
+  // FIX 2026-09-07 #225 顶部更新条「一直重复提醒」（v3.26.x 按版本 ack 后用户复发报障）。残留两洞：
   // ① ack 只在点「刷新/稍后」时写——用户看到条不点（直接杀掉重开/切走），ack 不存在 → 同一版本每次打开都弹；
-  // ② SW 通道拉 version.json 失败时 showVerBar() 无 ts 照弹，ack 被整体绕过（GitHub Pages 弱网常态）；
-  // ③ 边修边部署一天多个版本，按版本 ack = 每个新部署必弹一次，用户一天被弹多次。
-  // 收口：加时间维免打扰（24h，showVerBar 两通道唯一入口统一生效）——
-  //   ver-update-notify 记「ts|弹条时刻」（弹条即记，不依赖点按钮）：同一版本（含 ts 未知）24h 内不弹第二次；
-  //   ver-update-snooze 记「点按钮时刻」：点过稍后/刷新后 24h 内任何版本都不弹（用户已明确表态）。
-  // 24h 后自动恢复提醒，ack 按版本语义不变——既不轰炸也不漏掉真正的新版本。
+  // ② SW 通道拉 version.json 失败时 showVerBar() 无 ts 照弹，ack 被整体绕过（GitHub Pages 弱网常态）。
+  // 收口（v2，按站点主口径修订：本站一天可能部署十几次，禁止任何按时间窗压制新版本提醒）：
+  // ver-update-notify 记「最近弹过的版本 ts」——弹条即记、永久有效：同一版本只弹一次（无论点没点
+  // 按钮、隔多久重开）；更新的版本（ts 更大）立即照弹，不受任何时间限制；ts 未知（拉版本失败）只在
+  // 从没弹过条时才照弹（宁多勿漏只留给全新用户；真正的新版本由轮询通道在网络恢复后正常提醒，不会漏）。
   const VER_NOTIFY_KEY = 'xy-home-v2:ver-update-notify';
-  const VER_SNOOZE_KEY = 'xy-home-v2:ver-update-snooze';
-  const VER_SNOOZE_MS = 24 * 60 * 60 * 1000;
   let _verBarShown = false;
   // 用户上次已确认/已刷到的版本时间戳（0 = 从未确认过）
   function verAckTs() {
@@ -82,25 +79,21 @@
   }
   function verLsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function verLsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  // 弹条即记（版本 ts|时刻），不依赖用户点按钮——同版本 24h 免打扰的依据
+  // 弹条即记「ts|时刻」，不依赖用户点按钮——同版本只弹一次的依据（记录永久有效，不按时间过期）
   function verMarkNotify(onlineTs) {
     const n = Number(onlineTs);
     verLsSet(VER_NOTIFY_KEY, (n > 0 ? n : 0) + '|' + Date.now());
   }
-  function verMarkSnooze() { verLsSet(VER_SNOOZE_KEY, String(Date.now())); }
-  // FIX 2026-09-07 #225 免打扰判定：24h 内点过「稍后/刷新」→ 全静默；
-  // 否则 24h 内弹过同一版本（或本次 ts 未知）→ 不重复弹。两类记录过期后自动失效。
-  function verSnoozed(onlineTs) {
-    const snoozeAt = Number(verLsGet(VER_SNOOZE_KEY)) || 0;
-    if (snoozeAt && Date.now() - snoozeAt < VER_SNOOZE_MS) return true;
+  // FIX 2026-09-07 #225v2 是否已提醒过：同版本（记录 ts ≥ 线上 ts）不再弹；
+  // ts 未知（拉版本失败）时只要弹过任何版本就不再照弹——「宁多勿漏」只保留给从没弹过条的
+  // 全新用户，弱网绕过免打扰的口子堵死；真正的新版本由轮询通道在网络恢复后立即提醒，不会漏。
+  function verSeen(onlineTs) {
     const last = verLsGet(VER_NOTIFY_KEY);
     if (!last) return false;
-    const sep = last.indexOf('|');
-    const lastTs = Number(last.slice(0, sep));
-    const lastAt = Number(last.slice(sep + 1));
     const n = Number(onlineTs);
-    const sameOrUnknown = !n || isNaN(n) || lastTs === n;
-    return sameOrUnknown && lastAt > 0 && Date.now() - lastAt < VER_SNOOZE_MS;
+    if (!n || isNaN(n)) return true;
+    const lastTs = Number(String(last).split('|')[0]);
+    return lastTs >= n;
   }
   // v3.10.x：带超时的 fetch（5s），弱网不挂起；失败由调用方快速重试
   function fetchJson(url, ms) {
@@ -111,19 +104,19 @@
       .catch(function (err) { if (timer) clearTimeout(timer); throw err; });
   }
   // 显示更新条（版本轮询 + SW 检测共用）：跨通道一次性去重 + 已确认过本版本不再提醒
-  // FIX 2026-09-07 #225：追加 verSnoozed 时间维免打扰（同版本 24h 一弹 + 点按钮后 24h 全静默）
+  // FIX 2026-09-07 #225v2：追加 verSeen 一版一弹（同版本不重复弹；新版本立即弹，无任何时间窗）
   function showVerBar(onlineTs) {
-    if (_verBarShown || !verShouldNotify(onlineTs) || verSnoozed(onlineTs)) return;
+    if (_verBarShown || !verShouldNotify(onlineTs) || verSeen(onlineTs)) return;
     _verBarShown = true;
     verMarkNotify(onlineTs);
     const barEl = document.getElementById('ver-update-bar');
     if (!barEl) { toast('已检测到新版本，刷新页面即可更新'); return; }
     barEl.hidden = false;
     const actEl = document.getElementById('ver-update-refresh');
-    if (actEl) actEl.onclick = function () { verMarkAck(onlineTs); verMarkSnooze(); refreshNow(); };
+    if (actEl) actEl.onclick = function () { verMarkAck(onlineTs); refreshNow(); };
     // v3.5.134：可关闭（"稍后"）——不挡用户当前操作；关闭即记为已确认当前版本
     const closeBtn = document.getElementById('ver-update-close');
-    if (closeBtn) closeBtn.onclick = function () { verMarkAck(onlineTs); verMarkSnooze(); barEl.hidden = true; };
+    if (closeBtn) closeBtn.onclick = function () { verMarkAck(onlineTs); barEl.hidden = true; };
   }
 
   // ================= v3.6.x：新版本检测（版本文件轮询，iOS/安卓均可靠） =================
