@@ -40,6 +40,15 @@
   const DEF_MEMO_ALLDONE = ['都做完啦，真棒', '全部完成，说到做到', '清零啦，奖励一个抱抱'];
   const DEF_MEMO_DONE = ['又完成一件，好棒', '进度 +1，继续呀', '完成啦'];
   const DEF_MEMO_ADD = ['记下来啦，我盯着你完成', '嗯，我记着了', '好的，一件一件来'];
+  // FIX 2026-09-07 #237 添加备忘触发聊天提问：新增后 TA 在聊天里回应+追问一条
+  //（此前聊天侧仅「勾选完成(开关默认关)/手动分享」两通道，新增零联动=用户报障）。
+  // {m} = 备忘内容（发送时 memoClip 截断）
+  const DEF_MEMO_ASK = [
+    '记好啦：「{m}」，打算什么时候做呀？',
+    '「{m}」收到了，我先盯着，做完跟我说一声？',
+    '又记下一件：「{m}」，什么时候开始？',
+    '「{m}」……记下了，可别让我催你哦'
+  ];
 
   // ---- 图标注入第三页 ----
   const host = (document.getElementById('page-phone') || {}).parentNode || document.body;
@@ -297,6 +306,9 @@
     const a = memoItems();
     a.unshift({ id: Date.now() + '-' + Math.floor(Math.random() * 1000), t: v.slice(0, 500), done: false, pin: false, due: null, ts: Date.now() });
     memoSave(a); inp.value = ''; memoRender();
+    // FIX 2026-09-07 #237 添加备忘触发聊天提问：TA 侧即时回应+追问（带「备忘」来源 chip，
+    // chatAddIn 自带未读数+桌面横幅/后台通知联动，不在聊天页也能被提醒；完成/分享通道不变）
+    if (window.chatAddIn) { try { window.chatAddIn(memoPick(DEF_MEMO_ASK).replace('{m}', memoClip(v, 16)), { tag: '备忘' }); } catch (e) {} }
     if (Math.random() < 0.25) memoShowMsg(memoPick(DEF_MEMO_ADD));
   }
   // ---- TA 互动：催办（临期/积压）+ 偶尔帮你完成一件 ----
