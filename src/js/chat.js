@@ -7661,6 +7661,10 @@ const voicePanel = document.getElementById('voice-panel');
 const VOICE_MAX_MS = 60000;
 let voiceStream = null, voiceRec = null, voiceChunks = [], voiceTimer = null, voiceStarting = false; // FIX 2026-09-05 #169 录音启动进行中闸门
 let voiceStartTs = 0, voiceDataUrl = '', voiceDur = 0, voiceSilent = false, voicePreviewAudio = null, voiceVisHandler = null;
+// FIX 2026-09-07 #228 停止链路兜底：voiceStopping=stop() 已发出但 onstop 未回（防连点偷走新录音机句柄）；
+// voiceStopWatchdog=onstop 迟到/丢失 3s 自行结账；voiceStopSettled=本次停止已结账闩（onstop/看门狗/异常
+// 三路只走一路）；voiceMimeFallback=指定容器录出空数据后下次改用浏览器默认容器（isTypeSupported 谎报的壳唯一退路）
+let voiceStopping = false, voiceStopWatchdog = null, voiceStopSettled = false, voiceMimeFallback = false;
 function voiceEnabled() {
 try { return store.get('cs-voice-send') === '1'; } catch (e) { return false; }
 }
@@ -7739,6 +7743,7 @@ return !!md.isAndroid && !isAndroidWebView();
 }
 function pickVoiceMime() {
 if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+if (voiceMimeFallback) return ''; // FIX #228 上个指定容器没录到数据：这轮交浏览器自选默认容器
 // 优先级：标准安卓浏览器把 webm/opus 放最前（Chromium 原生默认、稳且无爆音），mp4/aac 兜底；
 // iOS/WebView 仍把 mp4/aac 放最前（iOS 唯一可录可播；WebView 对 webm 能录不能播）。
 const list = voiceMimePreferOpus()
@@ -7770,6 +7775,26 @@ try { return await navigator.mediaDevices.getUserMedia(tries[i]); } catch (e) { 
 }
 throw lastErr;
 }
+// FIX 2026-09-07 #228 麦克风启动看门狗：雨见等 Gecko 壳/权限委托异常时 getUserMedia 可能既不 resolve
+// 也不 reject 永久挂起——#169 的 voiceStarting 闸门会因此永不复位，之后每次点「开始录音」都被静默忽略
+// （面板看似点不动、零提示=报障「发不出去语音」）。到时先报错复位让用户能重试；迟到的流直接停轨防麦克风常驻占用。
+function acquireVoiceStreamGuarded(ms) {
+return new Promise((resolve, reject) => {
+let settled = false;
+const to = setTimeout(() => {
+if (settled) return;
+settled = true;
+reject(Object.assign(new Error('microphone timeout'), { name: 'TimeoutError' }));
+}, ms || 15000);
+acquireVoiceStream().then((s) => {
+if (settled) { try { s.getTracks().forEach((t) => t.stop()); } catch (e) {} return; } // 迟到的流防泄漏
+settled = true; clearTimeout(to); resolve(s);
+}).catch((e) => {
+if (settled) return;
+settled = true; clearTimeout(to); reject(e);
+});
+});
+}
 // FIX 2026-09-05 #169（用户报障 OPPO Reno6 5G+雨见浏览器「一直提示已达最长60秒」）：防重入包装。
 // startVoiceRec 在 await getUserMedia 期间（慢壳开麦可达数秒，期间按钮文案未变，用户必然连点）
 // 重复进入会整体覆盖 voiceRec/voiceStartTs 并把 voiceTimer 覆盖成新 id——旧计时器永久丢失成孤儿，
@@ -7777,18 +7802,20 @@ throw lastErr;
 // 只能刷新页面），同时第一路 MediaRecorder+麦克风流被覆盖泄漏。进行中的启动直接忽略重复调用。
 async function startVoiceRec() {
 if (voiceStarting) return;
+if (voiceStopping) { toast('正在停止录音，请稍候'); return; } // FIX #228 上一次停止还没结账，忽略本次启动
 voiceStarting = true;
 try { await startVoiceRecInner(); } finally { voiceStarting = false; }
 }
 async function startVoiceRecInner() {
+voiceStopSettled = false; // FIX #228 新一轮录音：停止结账闩复位
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
 toast('当前浏览器不支持录音'); return;
 }
 let stream = null;
 try {
-stream = await acquireVoiceStream();
+stream = await acquireVoiceStreamGuarded(15000); // FIX #228 挂起壳 15s 无响应即报错复位，不再永久锁死 voiceStarting
 } catch (e) {
-toast(e && e.name === 'NotAllowedError' ? '麦克风权限被拒绝，请在浏览器设置里允许后重试' : '无法访问麦克风');
+toast(e && e.name === 'TimeoutError' ? '麦克风无响应，请检查录音权限或重启浏览器后重试' : (e && e.name === 'NotAllowedError' ? '麦克风权限被拒绝，请在浏览器设置里允许后重试' : '无法访问麦克风'));
 return;
 }
 voiceStopPreview();
@@ -7805,6 +7832,9 @@ rec.onerror = (ev) => {
   try {
     if (voiceTimer) { clearInterval(voiceTimer); voiceTimer = null; }
     if (voiceVisHandler) { document.removeEventListener('visibilitychange', voiceVisHandler); voiceVisHandler = null; }
+    if (voiceStopWatchdog) { clearTimeout(voiceStopWatchdog); voiceStopWatchdog = null; } // FIX #228 出错后不会有 onstop，看门狗一并清
+    voiceStopping = false;
+    voiceStopSettled = true; // FIX #228 错误路径直接销账，不再等 onstop
     voiceStopStream();
     voiceRec = null;
     renderVoiceIdle();
@@ -7852,12 +7882,28 @@ if (voicePanel) voicePanel.classList.remove('recording');
 const rb = document.getElementById('voice-record-btn');
 if (rb) rb.classList.remove('rec');
 if (voiceRec && voiceRec.state === 'recording') {
-try { voiceRec.stop(); } catch (e) { voiceStopStream(); }
+voiceStopping = true; // FIX #228 结账前挡住重入（连点停止/立刻再开始都会偷句柄）
+armVoiceStopWatchdog(); // FIX #228 慢壳 onstop 迟到/丢失兜底
+try { voiceRec.stop(); } catch (e) { voiceFinalizeStop(); } // stop 都抛了就没有 onstop，直接结账（空数据走可见失败）
 } else {
 voiceStopStream();
 }
 }
-function onVoiceRecStop() {
+// FIX 2026-09-07 #228：雨见等 Gecko 壳上 ondataavailable/onstop 可能迟到或不来——3 秒后仍未结账就用
+// 已到的分片自行收尾；voiceFinalizeStop 幂等（voiceStopSettled 闩），onstop 与看门狗谁先到都只结一次账
+function armVoiceStopWatchdog() {
+if (voiceStopWatchdog) clearTimeout(voiceStopWatchdog);
+voiceStopWatchdog = setTimeout(() => { voiceStopWatchdog = null; voiceFinalizeStop(); }, 3000);
+}
+function onVoiceRecStop() { voiceFinalizeStop(); }
+// FIX 2026-09-07 #228 停止结账统一收口（原 onVoiceRecStop 主体）：空数据不再静默 return（面板永远停在
+// 「正在录音…」、发送键永远灰=本次报障症状），改可见失败态+置 voiceMimeFallback 下次换默认容器；
+// 录到数据则清兜底标记沿用当前 mime 策略。原「关面板静默丢弃/太短提示」语义保留。
+function voiceFinalizeStop() {
+if (voiceStopSettled) return;
+voiceStopSettled = true;
+if (voiceStopWatchdog) { clearTimeout(voiceStopWatchdog); voiceStopWatchdog = null; }
+voiceStopping = false;
 voiceStopStream();
 voiceRec = null;
 const wasSilent = voiceSilent;
@@ -7867,8 +7913,21 @@ const blob = new Blob(voiceChunks.length ? voiceChunks : [], { type: (voiceChunk
 voiceChunks = [];
 const rb = document.getElementById('voice-record-btn');
 if (rb) rb.textContent = '重新录音';
-if (wasSilent || !blob.size) return; // 关闭面板打断的录音直接丢弃
-  if (Date.now() - voiceStartTs < 800) { toast('录音太短，请录满 1 秒以上'); return; }
+if (wasSilent || !blob.size) {
+if (!wasSilent) {
+voiceMimeFallback = true;
+voiceDataUrl = ''; voiceDur = 0;
+const sb0 = document.getElementById('voice-send-btn');
+if (sb0) sb0.disabled = true;
+const st0 = document.getElementById('voice-status');
+if (st0) st0.textContent = '没录到声音数据，请重试';
+if (rb) rb.textContent = '开始录音';
+toast('录音失败：本浏览器没返回声音数据，请再录一次');
+}
+return; // 关闭面板打断的录音直接丢弃（原语义保留）
+}
+if (Date.now() - voiceStartTs < 800) { toast('录音太短，请录满 1 秒以上'); return; }
+voiceMimeFallback = false; // FIX #228 本容器录到了数据：清兜底标记，沿用当前 mime 选择策略
 const fr = new FileReader();
 fr.onload = () => {
 voiceDataUrl = String(fr.result || '');
@@ -7890,6 +7949,7 @@ fr.onerror = () => { toast('录音数据读取失败'); };
 fr.readAsDataURL(blob);
 }
 async function toggleVoiceRecord() {
+if (voiceStopping) return; // FIX #228 停止结账中（onstop 迟到窗口）忽略连点，防新录音机句柄被旧结账偷走
 if (voiceRec && voiceRec.state === 'recording') stopVoiceRec(false);
 else await startVoiceRec();
 }

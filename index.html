@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788715169109">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.502</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 01:19<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788716264423">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.503</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 01:37<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.502</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.503</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.502</span>
+              <span class="lic-ver">v3.26.503</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -16543,20 +16543,35 @@ n++;
 return n;
 }
 try { wrjReplay(wrjLoad(wrjLsRaw())); } catch (e) {}
+let _wrjMergeTries = 0;
+let _wrjMergeBusy = false;
+function wrjMergeRetry() {
+_wrjMergeBusy = false; // 各失败路径统一在此解锁，重试才能重新进入
+if (_wrjMerged || _wrjMergeTries >= 5) return;
+_wrjMergeTries++;
+setTimeout(function () { try { wrjMergeFromIdb(); } catch (e) {} }, 10000);
+}
 function wrjMergeFromIdb() {
-if (_wrjMerged) return;
-_wrjMerged = true;
-if (!window.idbGetAllKeys || !window.idbGetMany) return;
-window.idbGetAllKeys().then(function (keys) {
-const marked = (keys || []).filter(function (k) { return String(k).indexOf(WRJ_MARK) === 0; });
-if (!marked.length) return;
+if (_wrjMerged || _wrjMergeBusy) return;
+if (!window.idbListKeys || !window.idbGetMany) return;
+_wrjMergeBusy = true;
+window.idbListKeys().then(function (keys) {
+if (!keys) { wrjMergeRetry(); return; }
+const marked = keys.filter(function (k) { return String(k).indexOf(WRJ_MARK) === 0; });
+if (!marked.length) { _wrjMergeBusy = false; _wrjMerged = true; return; }
 window.idbGetMany(marked).then(function (marks) {
 const cand = marked.filter(function (mk) {
 const t = marks[mk];
 const full = String(mk).slice(WRJ_MARK.length);
 return typeof t === 'number' && t > (_wrjTimes[full] || 0);
 });
-if (!cand.length) return;
+if (!cand.length) {
+const anyTs = marked.some(function (mk) { return typeof marks[mk] === 'number'; });
+if (!anyTs) { wrjMergeRetry(); return; } // 有标记却全读不到数值＝这轮没读到，不是真没有
+_wrjMergeBusy = false; _wrjMerged = true; // 标记都在但都不比已知写入新＝确实无可修
+return;
+}
+_wrjMergeBusy = false; _wrjMerged = true;
 window.idbGetMany(cand.map(function (mk) { return String(mk).slice(WRJ_MARK.length); })).then(function (vals) {
 if (!memoryCache) memoryCache = {};
 let healed = 0;
@@ -16575,7 +16590,7 @@ try { document.dispatchEvent(new Event('mochi-wrj-heal')); } catch (e2) {}
 }
 });
 });
-}).catch(function () {});
+}).catch(function () { wrjMergeRetry(); });
 }
 document.addEventListener('mochi-restore-done', wrjMergeFromIdb);
 setTimeout(wrjMergeFromIdb, 15000); // restore 整体挂起时的兜底（正常走 mochi-restore-done，_wrjMerged 防重入）
@@ -31423,6 +31438,7 @@ const voicePanel = document.getElementById('voice-panel');
 const VOICE_MAX_MS = 60000;
 let voiceStream = null, voiceRec = null, voiceChunks = [], voiceTimer = null, voiceStarting = false; // FIX 2026-09-05 #169 录音启动进行中闸门
 let voiceStartTs = 0, voiceDataUrl = '', voiceDur = 0, voiceSilent = false, voicePreviewAudio = null, voiceVisHandler = null;
+let voiceStopping = false, voiceStopWatchdog = null, voiceStopSettled = false, voiceMimeFallback = false;
 function voiceEnabled() {
 try { return store.get('cs-voice-send') === '1'; } catch (e) { return false; }
 }
@@ -31493,6 +31509,7 @@ return !!md.isAndroid && !isAndroidWebView();
 }
 function pickVoiceMime() {
 if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+if (voiceMimeFallback) return ''; // FIX #228 上个指定容器没录到数据：这轮交浏览器自选默认容器
 const list = voiceMimePreferOpus()
 ? ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg;codecs=opus']
 : ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
@@ -31517,20 +31534,39 @@ try { return await navigator.mediaDevices.getUserMedia(tries[i]); } catch (e) { 
 }
 throw lastErr;
 }
+function acquireVoiceStreamGuarded(ms) {
+return new Promise((resolve, reject) => {
+let settled = false;
+const to = setTimeout(() => {
+if (settled) return;
+settled = true;
+reject(Object.assign(new Error('microphone timeout'), { name: 'TimeoutError' }));
+}, ms || 15000);
+acquireVoiceStream().then((s) => {
+if (settled) { try { s.getTracks().forEach((t) => t.stop()); } catch (e) {} return; } // 迟到的流防泄漏
+settled = true; clearTimeout(to); resolve(s);
+}).catch((e) => {
+if (settled) return;
+settled = true; clearTimeout(to); reject(e);
+});
+});
+}
 async function startVoiceRec() {
 if (voiceStarting) return;
+if (voiceStopping) { toast('正在停止录音，请稍候'); return; } // FIX #228 上一次停止还没结账，忽略本次启动
 voiceStarting = true;
 try { await startVoiceRecInner(); } finally { voiceStarting = false; }
 }
 async function startVoiceRecInner() {
+voiceStopSettled = false; // FIX #228 新一轮录音：停止结账闩复位
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
 toast('当前浏览器不支持录音'); return;
 }
 let stream = null;
 try {
-stream = await acquireVoiceStream();
+stream = await acquireVoiceStreamGuarded(15000); // FIX #228 挂起壳 15s 无响应即报错复位，不再永久锁死 voiceStarting
 } catch (e) {
-toast(e && e.name === 'NotAllowedError' ? '麦克风权限被拒绝，请在浏览器设置里允许后重试' : '无法访问麦克风');
+toast(e && e.name === 'TimeoutError' ? '麦克风无响应，请检查录音权限或重启浏览器后重试' : (e && e.name === 'NotAllowedError' ? '麦克风权限被拒绝，请在浏览器设置里允许后重试' : '无法访问麦克风'));
 return;
 }
 voiceStopPreview();
@@ -31547,6 +31583,9 @@ rec.onerror = (ev) => {
 try {
 if (voiceTimer) { clearInterval(voiceTimer); voiceTimer = null; }
 if (voiceVisHandler) { document.removeEventListener('visibilitychange', voiceVisHandler); voiceVisHandler = null; }
+if (voiceStopWatchdog) { clearTimeout(voiceStopWatchdog); voiceStopWatchdog = null; } // FIX #228 出错后不会有 onstop，看门狗一并清
+voiceStopping = false;
+voiceStopSettled = true; // FIX #228 错误路径直接销账，不再等 onstop
 voiceStopStream();
 voiceRec = null;
 renderVoiceIdle();
@@ -31592,12 +31631,23 @@ if (voicePanel) voicePanel.classList.remove('recording');
 const rb = document.getElementById('voice-record-btn');
 if (rb) rb.classList.remove('rec');
 if (voiceRec && voiceRec.state === 'recording') {
-try { voiceRec.stop(); } catch (e) { voiceStopStream(); }
+voiceStopping = true; // FIX #228 结账前挡住重入（连点停止/立刻再开始都会偷句柄）
+armVoiceStopWatchdog(); // FIX #228 慢壳 onstop 迟到/丢失兜底
+try { voiceRec.stop(); } catch (e) { voiceFinalizeStop(); } // stop 都抛了就没有 onstop，直接结账（空数据走可见失败）
 } else {
 voiceStopStream();
 }
 }
-function onVoiceRecStop() {
+function armVoiceStopWatchdog() {
+if (voiceStopWatchdog) clearTimeout(voiceStopWatchdog);
+voiceStopWatchdog = setTimeout(() => { voiceStopWatchdog = null; voiceFinalizeStop(); }, 3000);
+}
+function onVoiceRecStop() { voiceFinalizeStop(); }
+function voiceFinalizeStop() {
+if (voiceStopSettled) return;
+voiceStopSettled = true;
+if (voiceStopWatchdog) { clearTimeout(voiceStopWatchdog); voiceStopWatchdog = null; }
+voiceStopping = false;
 voiceStopStream();
 voiceRec = null;
 const wasSilent = voiceSilent;
@@ -31607,8 +31657,21 @@ const blob = new Blob(voiceChunks.length ? voiceChunks : [], { type: (voiceChunk
 voiceChunks = [];
 const rb = document.getElementById('voice-record-btn');
 if (rb) rb.textContent = '重新录音';
-if (wasSilent || !blob.size) return; // 关闭面板打断的录音直接丢弃
+if (wasSilent || !blob.size) {
+if (!wasSilent) {
+voiceMimeFallback = true;
+voiceDataUrl = ''; voiceDur = 0;
+const sb0 = document.getElementById('voice-send-btn');
+if (sb0) sb0.disabled = true;
+const st0 = document.getElementById('voice-status');
+if (st0) st0.textContent = '没录到声音数据，请重试';
+if (rb) rb.textContent = '开始录音';
+toast('录音失败：本浏览器没返回声音数据，请再录一次');
+}
+return; // 关闭面板打断的录音直接丢弃（原语义保留）
+}
 if (Date.now() - voiceStartTs < 800) { toast('录音太短，请录满 1 秒以上'); return; }
+voiceMimeFallback = false; // FIX #228 本容器录到了数据：清兜底标记，沿用当前 mime 选择策略
 const fr = new FileReader();
 fr.onload = () => {
 voiceDataUrl = String(fr.result || '');
@@ -31630,6 +31693,7 @@ fr.onerror = () => { toast('录音数据读取失败'); };
 fr.readAsDataURL(blob);
 }
 async function toggleVoiceRecord() {
+if (voiceStopping) return; // FIX #228 停止结账中（onstop 迟到窗口）忽略连点，防新录音机句柄被旧结账偷走
 if (voiceRec && voiceRec.state === 'recording') stopVoiceRec(false);
 else await startVoiceRec();
 }
@@ -80475,4 +80539,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq2ttn9 -->
+<!-- __MOCHI_EOF__ mtq3hasn -->

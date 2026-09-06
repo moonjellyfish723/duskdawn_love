@@ -946,13 +946,30 @@
   }
   // 同步回放 LS 日志（杀进程场景下 LS 值与 LS 日志常同批回滚，此路为空时靠下方 IDB 合并兜底）
   try { wrjReplay(wrjLoad(wrjLsRaw())); } catch (e) {}
+  // FIX 2026-09-07 #229：合并失败必须重试——原实现入口即置 _wrjMerged=true，且走
+  // idbGetAllKeys（把「清单读取失败(null)」折叠成「空数组」，与「库里确实没有标记」
+  // 不可区分）：真我/荣耀/小米 Edge 等挂起内核上合并恰逢 IDB 挂起窗口时空转一次后，
+  // 整个会话永久放弃 → LS 被杀进程回滚的美化/设置/近期小数据在本会话再无第二道
+  // 自愈防线（用户视角＝刷新后部分数据丢失，多机型复发）。现改走严格三态
+  // idbListKeys：null=读取失败 → 有界重试（10s×5），合并真正走完（或确认无可修）
+  // 才置 _wrjMerged；有标记却读不到任何有效时间戳（idbGetMany 失败折叠成 undefined）
+  // 同样重试。时间戳守卫（t > _wrjTimes）保证迟到的重试合并永不覆盖本会话新写入。
+  let _wrjMergeTries = 0;
+  let _wrjMergeBusy = false;
+  function wrjMergeRetry() {
+    _wrjMergeBusy = false; // 各失败路径统一在此解锁，重试才能重新进入
+    if (_wrjMerged || _wrjMergeTries >= 5) return;
+    _wrjMergeTries++;
+    setTimeout(function () { try { wrjMergeFromIdb(); } catch (e) {} }, 10000);
+  }
   function wrjMergeFromIdb() {
-    if (_wrjMerged) return;
-    _wrjMerged = true;
-    if (!window.idbGetAllKeys || !window.idbGetMany) return;
-    window.idbGetAllKeys().then(function (keys) {
-      const marked = (keys || []).filter(function (k) { return String(k).indexOf(WRJ_MARK) === 0; });
-      if (!marked.length) return;
+    if (_wrjMerged || _wrjMergeBusy) return;
+    if (!window.idbListKeys || !window.idbGetMany) return;
+    _wrjMergeBusy = true;
+    window.idbListKeys().then(function (keys) {
+      if (!keys) { wrjMergeRetry(); return; }
+      const marked = keys.filter(function (k) { return String(k).indexOf(WRJ_MARK) === 0; });
+      if (!marked.length) { _wrjMergeBusy = false; _wrjMerged = true; return; }
       window.idbGetMany(marked).then(function (marks) {
         // 有标记且比已知写入新的键 → 读 IDB 权威值修正 内存+LS（标记幸存 = 该键最近
         // 被写过且 IDB 值事务先于标记事务提交，LS 若与其不一致就是被回滚的旧值）
@@ -961,7 +978,13 @@
           const full = String(mk).slice(WRJ_MARK.length);
           return typeof t === 'number' && t > (_wrjTimes[full] || 0);
         });
-        if (!cand.length) return;
+        if (!cand.length) {
+          const anyTs = marked.some(function (mk) { return typeof marks[mk] === 'number'; });
+          if (!anyTs) { wrjMergeRetry(); return; } // 有标记却全读不到数值＝这轮没读到，不是真没有
+          _wrjMergeBusy = false; _wrjMerged = true; // 标记都在但都不比已知写入新＝确实无可修
+          return;
+        }
+        _wrjMergeBusy = false; _wrjMerged = true;
         window.idbGetMany(cand.map(function (mk) { return String(mk).slice(WRJ_MARK.length); })).then(function (vals) {
           if (!memoryCache) memoryCache = {};
           let healed = 0;
@@ -980,7 +1003,7 @@
           }
         });
       });
-    }).catch(function () {});
+    }).catch(function () { wrjMergeRetry(); });
   }
   document.addEventListener('mochi-restore-done', wrjMergeFromIdb);
   setTimeout(wrjMergeFromIdb, 15000); // restore 整体挂起时的兜底（正常走 mochi-restore-done，_wrjMerged 防重入）

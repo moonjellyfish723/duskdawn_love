@@ -1,3 +1,10 @@
+### 2026-09-07 01:4x（#229 多机型「部分数据丢失」残余洞——wrj 合并读失败一次即弃全会话放弃自愈；已构建·sw mochi-mtq3hasn·本次构建者：AI-B 本会话）
+- [AI-B 域]（**改动文件：src/js/idb.js（wrjMergeFromIdb 三处：改走严格三态 idbListKeys 不再把读失败折叠成「没标记」；合并真正走完/确认无可修才置 _wrjMerged；读失败有界重试 10s×5 wrjMergeRetry，busy 解锁统一收口；idbGetMany 折叠 undefined→cand 空同样重试）、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#229 行+设备索引 LS 回滚家族行加 229）、tools/verify-wrj-merge-retry.mjs（新增 17 断言）**；构建状态：**已构建·sw mochi-mtq3hasn·哨兵 498/498 哑 0·sw 14/14**）。
+- 需求/根因：用户再报「手机数据丢失、非全量、其他机型也有」＝#82/#88/#226 同家族第三层。#226 修好「标记写不进去」后，自愈第二道防线读取侧仍有一击即溃点：wrjMergeFromIdb 入口即置 _wrjMerged 且走 idbGetAllKeys（读失败 null 折叠成空数组，与「没标记」不可区分）——挂起内核（真我/荣耀/小米 Edge/iOS 挂后台杀 IDB 服务）上启动合并恰逢挂起窗口时空转一次 → 会话剩余时间 LS 被杀进程回滚的美化/设置/近期小数据再无自愈（标记/新值都幸存 IDB，只差读回来）→「刷新后部分数据丢失」。
+- 验证：node --check 过；verify-wrj-merge-retry **17/17**（回滚世界场景：U1 健康自愈+heal 广播/U2 清单读失败→10s 重试自愈 listCalls≥3/U3 标记折叠 undefined→重试自愈）；**git stash 红绿对照：修复前 7/17（U2/U3 行为断言全红=LS 永远停留旧值，精确复现回归现场）**；verify-idb-setall-timeout 13/13（#226 不回归）、verify-docx-export 24/24（#227 不回归）。
+- 【并行 #228 语音批次随库声明】树上 src/js/chat.js（voiceStopping 闩/停止看门狗/voiceMimeFallback，代码注释标 FIX #228）+ tools/verify-voice-send.mjs 为并行会话在途完整改动，本口构建全量合并必然带上——chat.js 语法 node --check 过；verify-voice-send 实测 **19/24**（红 R4/R5/R8/R9/R10 全在录音链路：无头环境无真实麦克风 MediaRecorder 桩差异或真红，**归属 #228 会话定性**，本口未触碰其逻辑）。
+- 【真机:待验证】（真我/荣耀/小米 Edge 家族及任意机型）：改美化/设置→立刻杀浏览器重开→改动保留；若仍见回退，**第二次刷新（或等 10~60s 再操作）应自动恢复**＝重试自愈落地，不再是「整个会话永远旧值」。
+
 ### 2026-09-07 01:5x（#227 两处诊断「导出txt」→「导出docx」+ 屏幕适配诊断补导出按钮；已构建·sw mochi-mtq2ttn9·本次构建者：AI-B 本会话）
 - [AI-B 域]（**改动文件：src/js/device.js（旧 exportTxt 移除；零依赖新增 crc32+buildDocxBlob+exportDocx：存储式 ZIP+表驱动 CRC32 手写最小 OOXML 三件套，正文一行一段落/Consolas+雅黑/XML 转义/sectPr 收尾；信息诊断按钮改「导出docx」，屏幕适配诊断弹窗补「导出docx」按钮+文件名前缀 mochi-screen-diag-）、src/template.html（modal-export 默认文案导出docx）、build.mjs（哨兵 +1：docx ZIP 本地头签名锚；#113 与「超长引导导出」两条旧 txt 锚随迁 docx 口径，#113 取消自动复制语义不变）、tools/verify-docx-export.mjs（新增 24 断言）、FIX-REGRESSION.md（#227 行）**；构建状态：**已构建·sw mochi-mtq2ttn9·哨兵 493/493 哑 0·sw 14/14**）。
 - 需求：用户「【屏幕诊断】新增也可以导出txt，不过能不能导出docx；信息诊断可以修改为导出docx吗」。docx=ZIP 容器 OOXML，不引第三方库保持单文件构建；全 STORED 不压缩+手写 CRC32 兼容面最大，Word/WPS 手机端直开转发。

@@ -561,6 +561,10 @@ const FIX_SENTINELS = [
   { name: '#170 字卡库瘦身·删除前重读当前值防覆盖扫描后的编辑（组名匹配不到→不动，绝不据扫描快照盲写）', file: 'js/storage-slim.js', needle: 'if (g[cat].length === before) return false;' },
   { name: '#170 字卡库瘦身·查看存储页扫描入口（面板接线）', file: 'js/personalize.js', needle: "getElementById('st-cc-scan')" },
   { name: '#169 语音60秒误报根治（重复进入录音覆盖 voiceTimer 漏孤儿计时器每250ms误报已达60秒；孤儿自毁+非录音态不判60s，逻辑被改即消失）', file: 'js/chat.js', needle: 'if (voiceTimer !== voiceTid) { clearInterval(voiceTid); return; }' },
+  { name: '#228 语音停止结账看门狗（雨见等慢壳 onstop 迟到/丢失时 3s 自行结账，onstop/看门狗/异常三路幂等只结一次账；删看门狗即回归「停止后永远停在正在录音」）', file: 'js/chat.js', needle: 'voiceStopWatchdog = setTimeout(() => { voiceStopWatchdog = null; voiceFinalizeStop(); }, 3000);' },
+  { name: '#228 语音空数据可见失败+默认容器兜底（空 blob 不再静默 return 卡「正在录音…」，改失败态+下次换浏览器默认容器；删此行即回归静默卡死）', file: 'js/chat.js', needle: 'voiceMimeFallback = true;' },
+  { name: '#228 麦克风启动挂起看门狗（getUserMedia 永不落定时不锁死 voiceStarting 闸门+迟到流停轨防泄漏；删即回归面板点不动）', file: 'js/chat.js', needle: "Object.assign(new Error('microphone timeout'), { name: 'TimeoutError' })" },
+  { name: '#228 停止结账幂等闩（voiceStopSettled：onstop 与看门狗竞态只结一次账，防二次结账覆盖成功试听态）', file: 'js/chat.js', needle: 'if (voiceStopSettled) return;' },
   { name: '#171 iOS导milk json报「格式错误」·UTF-16转存重读自救（数NUL奇偶定位字节序换编码重读；删掉自救链此表达式即消失）', file: 'js/chatcard.js', needle: "reader.readAsText(f, odd >= even ? 'utf-16le' : 'utf-16be');" },
   { name: '#171 导入失败现场写诊断（__jsErrors 带[字卡导入]前缀，设置页复制诊断直接带出真因）', file: 'js/chatcard.js', needle: "'[字卡导入] '" },
   { name: '#171 导入处理异常单独提示（applyImportData 抛错不再被吞成「文件格式不正确」；#182 重构后走三元 else 支）', file: 'js/chatcard.js', needle: ": '导入处理失败：' + ((e && e.message) || '内部错误')" },
@@ -688,6 +692,7 @@ const FIX_SENTINELS = [
   { name: '#223 群聊颜色对比度自愈（选色不再回滚=修「一改就恢复」；低对比注入强制可读文字色——删自愈规则即回归，恢复「选色即弹回」或黑底黑字）', file: 'js/group-chat.js', needle: "'#page-group-chat .msg-' + p[0] + ' .msg-bubble.msg-bubble{color:'" },
   { name: '#224 摸鱼抓包 chk 作用域修复（本 IIFE 自备 dcfPFish 走 window.dcfGet——删助手改回跨 IIFE 引用 dcfP 即回归：每分钟 ReferenceError dcfP is not defined）', file: 'js/p2-features.js', needle: 'function dcfPFish(def)' },
   { name: '#226 idbSetAll 挂起超时骨架（#166 微批化后挂起内核上 wrj 标记/媒体池 flush 永不落地、false 兜底不可达=杀进程回滚 LS 后自愈失效「刷新后丢美化/丢数据」——删超时骨架即回归）', file: 'js/idb.js', needle: 'const lim = 4000 + (est > 262144' },
+  { name: '#229 wrj 合并失败重试（原入口即置 merged+idbGetAllKeys 把读失败折叠成空数组：挂起内核上自愈第二道防线空转一次全会话放弃=LS 回滚的美化/设置/小数据本会话无法恢复「部分数据丢失」——改回一次性放弃即回归）', file: 'js/idb.js', needle: 'if (!keys) { wrjMergeRetry(); return; }' },
 ];
 try {
   const built = CHECK_SENTINELS ? '' : readFileSync(join(root, 'index.html'), 'utf8');
