@@ -1,3 +1,11 @@
+### 2026-09-07 01:5x（#227 两处诊断「导出txt」→「导出docx」+ 屏幕适配诊断补导出按钮；已构建·sw mochi-mtq2ttn9·本次构建者：AI-B 本会话）
+- [AI-B 域]（**改动文件：src/js/device.js（旧 exportTxt 移除；零依赖新增 crc32+buildDocxBlob+exportDocx：存储式 ZIP+表驱动 CRC32 手写最小 OOXML 三件套，正文一行一段落/Consolas+雅黑/XML 转义/sectPr 收尾；信息诊断按钮改「导出docx」，屏幕适配诊断弹窗补「导出docx」按钮+文件名前缀 mochi-screen-diag-）、src/template.html（modal-export 默认文案导出docx）、build.mjs（哨兵 +1：docx ZIP 本地头签名锚；#113 与「超长引导导出」两条旧 txt 锚随迁 docx 口径，#113 取消自动复制语义不变）、tools/verify-docx-export.mjs（新增 24 断言）、FIX-REGRESSION.md（#227 行）**；构建状态：**已构建·sw mochi-mtq2ttn9·哨兵 493/493 哑 0·sw 14/14**）。
+- 需求：用户「【屏幕诊断】新增也可以导出txt，不过能不能导出docx；信息诊断可以修改为导出docx吗」。docx=ZIP 容器 OOXML，不引第三方库保持单文件构建；全 STORED 不压缩+手写 CRC32 兼容面最大，Word/WPS 手机端直开转发。
+- 验证：node --check 过；verify-docx-export **24/24**（vm 抽真实源码生成 docx 字节：ZIP 逐字段解析+独立重算 CRC+document.xml 内容/转义/中文+两处按钮接线静态断言）；系统 unzip -t 三件套校验 OK；对已入库 src 复跑同绿。
+- 【更正 9681141 随库归属】#225v2 口（9681141）「随库带上 #215 批次（device.js+template.html）」实为**本口 #227 docx 批次**（#215 已在 965a91d 自行入库；该笔带走的 device.js/template.html/build.mjs 全部是 #227 内容，其哨兵 493=492+本口 docx 锚可证）。功能无影响，仅登记更正；本笔补提交 verify 脚本/台账/澄清与本口产物刷新（ttn9，与 HEAD src 内容一致含 #225v2+#227，纯缓存号刷新）。
+- 【并行 idb 会话请查收】树上你口未提交的 src/js/idb.js+build.mjs 本口未触碰未提交；ttn9 产物不含你的 idb 改动，你口构建照常覆盖即可。
+- 【真机:待验证】（任意机型）：设置→诊断信息→【导出docx】、屏幕适配诊断→【导出docx】——下载的 docx 用 Word/WPS 打开不乱码、报告数值不错行。
+
 ### 2026-09-07 01:2x（#225v2 更新条提醒口径修订：废 24h 时间窗，改一版一弹——站点主反馈「一天会更新十几次」，任何按时间压制新版本提醒都不成立）· 已构建 · **本次构建者：AI-B 本会话**
 - [AI-B 域]（**改动文件：src/js/pwa.js（弹条门 verSnoozed 24h 免打扰 → verSeen 一版一弹：ver-update-notify 弹条即记同版本永久不再弹；更新的版本立即照弹无任何时间限制；ts 未知只在从没弹过时照弹；按版本 ack 保留；VER_SNOOZE 键与逻辑整体移除，已下发用户的孤儿键无害）、build.mjs（#225 哨兵 needle/描述随 v2 更新）、FIX-REGRESSION.md（#225 行改 v2 口径）、tools/verify-ver-update-snooze.mjs（重写 19 断言）**；构建状态：**已构建·sw 见 version.json·本口执行**）。
 - 修订动机：v1（1e2630e 下发的 24h 免打扰）被站点主否决——部署节奏一天十几次，24h 静默会让用户整天收不到新版本提醒。v2 语义：重复=同一版本反复弹（已绝），新版本=立即弹一次（保留），二者靠「按版本记录」区分，不靠时间窗。
