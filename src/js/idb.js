@@ -188,17 +188,34 @@
   };
 
   // 批量写入（单事务一次完成，比逐条 idbSet 快；任一条失败则整体失败）
+  // FIX 2026-09-07 #226：补挂起超时骨架（与 idbSet/idbGet 同款）——原实现裸奔：真我/荣耀/
+  // 小米 Edge 等挂起内核上事务既不 oncomplete 也不 onerror，Promise 永不落地，两个调用方
+  // 的「返回 false 兜底」双双失效：
+  // ① wrj 写日志标记微批（wrjMarkFlush）：兜底退回逐键 idbSet 永不触发 → 标记静默丢失 →
+  //    浏览器杀进程回滚 localStorage 后 wrjMergeFromIdb 找不到新标记、自愈失效 → 最近的
+  //    美化/设置/小数据刷新后回退（#166 微批化后该家族多机型复发「刷新后丢美化/丢数据」）；
+  // ② media-pool mochiMediaFlush：writeBuf 已 splice 出去却既没写成功也没回队 → 表情/图片
+  //    令牌静默丢。现按值体积放大超时（与 idbSet 同公式），超时置空连接并 resolve(false)。
   window.idbSetAll = function (pairs) {
     if (!pairs || !pairs.length) return Promise.resolve(true);
     return open().then(db => new Promise((resolve) => {
+      let done = false;
+      let est = 0;
+      try { pairs.forEach(p => { const v = p && p.v; est += (typeof v === 'string' ? v.length : 64); }); } catch (e0) {}
+      const lim = 4000 + (est > 262144 ? Math.min(26000, Math.ceil(est / 262144) * 2000) : 0);
+      const t = setTimeout(function () {
+        if (done) return; done = true;
+        dbPromise = null; // 事务疑似挂起，连接重建交给下一次调用
+        resolve(false);
+      }, lim);
       try {
         const tx = db.transaction(STORE, 'readwrite');
         const os = tx.objectStore(STORE);
         pairs.forEach(p => { os.put(p.v, p.k); });
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => { if (connLost(tx.error)) dbPromise = null; resolve(false); };
-        tx.onabort = () => { if (connLost(tx.error)) dbPromise = null; resolve(false); };
-      } catch (e) { resolve(false); }
+        tx.oncomplete = () => { if (done) return; done = true; clearTimeout(t); resolve(true); };
+        tx.onerror = () => { if (done) return; done = true; clearTimeout(t); _idbFailLastErr = (tx.error && tx.error.name) || 'error'; if (connLost(tx.error)) dbPromise = null; resolve(false); };
+        tx.onabort = () => { if (done) return; done = true; clearTimeout(t); _idbFailLastErr = (tx.error && tx.error.name) || 'abort'; if (connLost(tx.error)) dbPromise = null; resolve(false); };
+      } catch (e) { if (done) return; done = true; clearTimeout(t); resolve(false); }
     })).catch(() => false);
   };
 

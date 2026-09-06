@@ -1,3 +1,13 @@
+### 2026-09-07 01:0x（#226「刷新后丢美化/丢数据」多机型复发——#166 微批化把写日志标记第二道自愈防线打断；已构建·sw mochi-mtq20nhx·本次构建者：AI-B 本会话）
+- [AI-B 域]（**改动文件：src/js/idb.js（idbSetAll 补挂起超时骨架：按值体积放大 4s~30s、超时置空连接+resolve(false)——wrjMarkFlush「退回逐键 idbSet」与 mochiMediaFlush「回队」两个 false 兜底恢复可达；健康内核路径零变化、#166 微批优化保留）、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#226 行+设备索引「多机型 LS 回滚家族」行）、tools/verify-idb-setall-timeout.mjs（新增 13 断言）**；构建状态：**已构建·sw mochi-mtq20nhx·哨兵 492/492 哑 0·sw 14/14**）。
+- 根因链：用户报「好多手机型号刷新后丢失美化、丢失数据」→ 与 #82/#88 LS 回滚家族同族、#166 后复发。#166 把 wrj 标记落库改成 idbSetAll 150ms 微批，而 idbSetAll 无超时骨架——真我/荣耀/小米 Edge 等挂起内核上标记事务永不落地且 false 兜底不可达：杀进程回滚 LS 后，LS 日志（第一道）与 LS 值同批回滚、IDB 标记（第二道）缺失 → wrjMergeFromIdb 无从自愈 → 美化/设置/近期小数据刷新回退；同一函数挂死还让媒体池 flush 永不回队=表情/图片令牌静默丢。
+- 验证：node --check 过；verify-idb-setall-timeout **13/13**（纯 Node 桩跑真实 idb.js+media-pool.js：健康内核微批保留/挂起内核 4s 判 false+兜底落标记/媒体池有界返回+恢复后落库）；**git stash 红绿对照**：修复前 T2/T3 永久挂起=红，精确复现回归现场。storage-opt 22/9 红经 stash 对照 HEAD 同红=存量（TASKS #130 在册，本批未触碰其沙箱路径）。
+- 【并行 #225 会话请查收】本口开工时树净，构建时你的 #225（pwa.js 更新条 24h 免打扰）批次已落树且工件齐备（哨兵+verify+台账行、构建解析过）→ 按「随库带上并行已声明批次」惯例一并收入本库 sw mochi-mtq20nhx：verify-ver-update-snooze **20/20**、你的哨兵含在 492/492 内。若还有在途增量，直接续改 pwa.js、下口构建带上即可，勿回滚本库产物。
+- 【真机:待验证】（真我/荣耀/小米 Edge 家族及任意机型）：①改美化/开关→立刻杀掉浏览器重开→改动保留不再回退；②表情/图片刷新后不再丢；③顶部更新条同版本 24h 内不重复弹（#225）。
+
+### 2026-09-07（#225 顶部更新条一直重复提醒——pwa.js 时间维免打扰收口）· 进行中 · **本次构建者：AI-B 本会话**
+- [AI-B 域]（计划改动：src/js/pwa.js、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#225 行）、tools/verify-ver-update-snooze.mjs（新增）。其余会话请勿并行构建/改 pwa.js。
+
 ### 2026-09-07 00:5x（#223 群聊颜色「一改就恢复」+ #224 摸鱼 chk 每分钟 dcfP 报错——荣耀畅玩40 Plus+夸克诊断报障，用户明说其他机型也有；已构建·sw mochi-mtq1331l·本次构建者：AI-A 本会话）
 - [AI-A 域]（**改动文件：src/js/group-chat.js（pickGcColor 删选色即回滚分支；新增 gcEnsureContrast 对比度自愈、接入 applyGcBeauty 尾部：out/in 组合对比 <1.5 时注入 #gc-contrast-fix 强制黑/白可读文字色，重入路径自动重算；低对比警告行文案改述新行为）、src/js/p2-features.js（chk 所在 IIFE 新增 dcfPFish 助手走 window.dcfGet，修跨 IIFE 引用 dcfP 必抛 ReferenceError）、build.mjs（哨兵 +2；#132 摸鱼锚 dcfP('fish',35)→dcfPFish(35)——原锚即作用域 bug 本体，改锚已在 name 里说明）、FIX-REGRESSION.md（#223/#224 行+设备索引「荣耀畅玩40 Plus（夸克）」行）、tools/verify-gc-color.mjs（新增 14 断言）、tools/verify-func-card-prob.mjs（A9 期望随 #224 更新）**；构建状态：**已构建·sw mochi-mtq1331l·哨兵 490/490 哑 0·sw 14/14**）。
 - #223 根因（v3.9.x 对比度保护设计缺陷）：pickGcColor 选色后 gcColorPairBad（阈值 2.2）不达标即回滚旧色。从默认黑气泡+白字出发：粉/浅色气泡对白字对比 1.1~1.5 全被拒、深色文字对黑底同样被拒，两步互锁——用户无论先改哪个都弹回（三步中转无人能想到）。与机型无关纯逻辑 bug。单聊同功能 v3.26.x 已改自愈方案（chat-settings._ensureBubbleContrast），群聊漏改，本次对齐。
