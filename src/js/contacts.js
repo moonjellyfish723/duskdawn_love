@@ -112,12 +112,24 @@
     // 共用）都是全局根键。此前漏排除，被 migrateLegacy 迁进 default 桌面并删 LS 根键 →
     // IDB 不可用场景下方案列表/开关刷新后消失。
     'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker',
+    // #231：完整外观方案（personalize.js full-beauty-schemes，v3.27.x 桌面+聊天合并方案的
+    // 方案列表）、美化撤销栈（personalize.js beauty-undo-stack）、更新条一版一弹记忆
+    // （pwa.js ver-update-ack-ts / ver-update-notify，#225v2）都是全局根键——此前漏排除，
+    // 每次刷新被 migrateLegacy 当旧顶层业务键迁进 default 并删根键 → 保存的完整方案/
+    // 撤销栈刷新后清空（红米 Note12 Turbo Chrome 报「自用完整外观方案保存后刷新恢复
+    // 初始」，多机型同发）、同版本更新条每刷新重弹。存量滞留副本见 migrateLegacy 回收。
+    'full-beauty-schemes', 'beauty-undo-stack', 'ver-update-ack-ts', 'ver-update-notify',
     // v3.26.x #121：通话进行中标记（call.js）——全局根键，call.js 每次启动 recoverCall
     // 读它恢复中断通话。绝不能被 migrateLegacy 当旧顶层业务键迁进 default 桌面并删根键
     // （否则 localStorage 兜底副本每次启动被搬走，关浏览器重开后恢复读不到标记）
     'call-active'];
   function isExcluded(k) {
     const r = k.slice(G.length + 1);
+    // #233：__ 前缀＝系统键（idb.js 根命名空间专用：__wr-journal 写日志＝LS 回滚自愈
+    // 第一道防线、__ls-dirty LS 脏键索引、__big-idx 大键索引），读取方都只认根键——
+    // 此前漏挡，无冒号的系统键每次刷新被当旧顶层业务键迁进 default 并删根键：写日志
+    // 每刷新清空、大键/脏键索引反复丢失，LS 回滚家族（#82/#88/#226/#229）自愈被持续削弱。
+    if (r.indexOf('__') === 0) return true;
     if (EXCLUDE.indexOf(r) >= 0) return true;
     // v3.9.x：reply-gc-* 群聊全局设置键同样不能迁移（无冒号，原逻辑会误判为旧业务键）
     if (r.indexOf('reply-gc-') === 0) return true;
@@ -510,9 +522,13 @@
     // 副本（幂等：根键已有值不覆盖，只删副本）。memo-app-* 不在此列——memo-app.js 自带
     // 误迁自愈与按 id 合并，避免两处同写冲突。
     // v3.27.x：desk-freq-mode 同列并入——把误迁进 default 的副本写回根键（存量一次性找回）。
+    // #231：full-beauty-schemes / beauty-undo-stack 同列并入——修复前已被迁进 default 的
+    // 存量完整方案/撤销栈副本写回根键（红米 Note12T 报障用户的「自用」方案数据就滞留在
+    // default: 副本里，靠这步找回；根键已有值时只删副本不覆盖）。
     ['pomo-cfg', 'pomo-today', 'pomo-total', 'pomo-msgs', 'pomo-send-chat', 'pomo-bell',
       'pomo-companion', 'pomo-companion-log', 'pomo-cmp-usecards',
-      'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker', 'desk-freq-mode'].forEach(function (k) {
+      'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker', 'desk-freq-mode',
+      'full-beauty-schemes', 'beauty-undo-stack'].forEach(function (k) {
       const v = def.get(k);
       if (v !== null && v !== undefined && v !== '') {
         try { if (root.get(k) === null || root.get(k) === undefined) root.set(k, v); } catch (e) {}
@@ -529,6 +545,19 @@
       if (k.indexOf(G + ':default:default:') === 0) garbage.push(k);
     }
     garbage.forEach(k => {
+      try { localStorage.removeItem(k); } catch (e) {}
+      if (window.idbDelete) try { window.idbDelete(k); } catch (e) {}
+    });
+    // #233：清理历史上被误迁进 default 的 __ 系统键残留副本（__wr-journal/__ls-dirty/
+    // __big-idx——读取方都只认根命名空间键，副本是死数据纯占 LS 配额；上面 __ 兜底规则
+    // 收口后不会再产生新滞留，这里一次性处理存量。LS 与 IDB 都删，防 idbRestore 每次回填）
+    const sysGarbage = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (k.indexOf(G + ':default:__') === 0) sysGarbage.push(k);
+    }
+    sysGarbage.forEach(k => {
       try { localStorage.removeItem(k); } catch (e) {}
       if (window.idbDelete) try { window.idbDelete(k); } catch (e) {}
     });

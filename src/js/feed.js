@@ -14,7 +14,17 @@
   (function feedRootRescue() {
     // v3.25.x：feed-last/feed-next/feed-day-count 不在此列——它们是【按联系人桌面】
     // 独立存取的 TA 发帖调度状态（见 deskSchedRescue 与 maybeAutoPostFor），不是全局共享键
-    const KEYS = ['feed-notices', 'feed-app-unread', 'feed-cover-bg', 'feed-ta-cover', 'feed-ta-name', 'feed-ta-avatar', 'feed-user-name', 'feed-user-avatar'];
+    // #232：身份/封面六键（cover-bg/ta-cover/ta-name/ta-avatar/user-name/user-avatar）同样
+    // 不在此列了——v3.8.x 朋友圈好友列表起它们已改【按联系人桌面】独立存取（所有读取方
+    // per-cid 优先、根键只是旧版全局回退），default 命名空间里的值是现行数据而非滞留残留。
+    // 旧逻辑「根键有值就删 default 副本」把用户编辑后的朋友圈头像/昵称/封面在每次启动时
+    // 删回旧全局值（红米 Note12 Turbo Chrome 报「保存后刷新恢复初始」，多机型同发），且
+    // 首次刷新还会把 per-cid 值搬上根键，从此每次编辑都活不过下一次刷新。六键改走下方
+    // DESK_KEYS 收养式回收：per-cid 有值一律不动；per-cid 为空且根键还有旧全局值时才收养
+    // 进 default（收养前向 IDB 三态确认 per-cid 真的没有值——>200KB 大值只存 IDB，
+    // def.get 看不到 ≠ 不存在，贸然收养会用旧全局值盖掉它），根键保留作回退，幂等。
+    const KEYS = ['feed-notices', 'feed-app-unread'];
+    const DESK_KEYS = ['feed-cover-bg', 'feed-ta-cover', 'feed-ta-name', 'feed-ta-avatar', 'feed-user-name', 'feed-user-avatar'];
     function run() {
       try {
         const root = window.xyStore('xy-home-v2');
@@ -29,6 +39,21 @@
             try { root.set(k, dv); } catch (e) {}
             try { def.remove(k); } catch (e) {}
           }
+        });
+        DESK_KEYS.forEach(function (k) {
+          let dv = null;
+          try { dv = def.get(k); } catch (e) {}
+          if (dv !== null && dv !== undefined && dv !== '') return; // per-cid 现行值：绝不动更不删（#232 根因）
+          let rv = null;
+          try { rv = root.get(k); } catch (e) {}
+          if (rv === null || rv === undefined || rv === '') return;
+          // 收养旧全局值前先向 IDB 确认 default 桌面确实没有该键（三态：false=没有才收养；
+          // true=大值在 IDB 只是 def.get 看不到 / null=探测失败，都保守跳过，下次刷新再试）
+          try {
+            window.idbHasKey('xy-home-v2:default:' + k).then(function (has) {
+              if (has === false) { try { def.set(k, rv); } catch (e) {} }
+            }).catch(function () {});
+          } catch (e) {}
         });
         // v3.25.x：TA 发帖调度键反向归位（修复用户反馈「回复设置里设了联系人每天最多发
         // N 条朋友圈，联系人照样无限发」）——上面 KEYS 的回收逻辑曾把 default 桌面命名

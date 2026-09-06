@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788719092685">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.505</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 02:24<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788720710326">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.506</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 02:51<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.505</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.506</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.505</span>
+              <span class="lic-ver">v3.26.506</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -14549,6 +14549,7 @@ const swIdx = L.length; L.push('开关持久化体检：读取中…');
 jobs.push(new Promise(function (res) {
 const cid = String(window.__activeCid || 'default');
 const P = G + cid + ':';
+const SP = G + ':' + cid;
 const fmt = function (v) { return v === null || v === undefined ? '缺失' : JSON.stringify(String(v)); };
 const KEYS = ['dc-enabled', 'dc-use-chat', 'dc-use-mail', 'dc-use-feed', 'dc-cat-main', 'cs-voice-send'];
 const lines = ['开关持久化体检（当前桌面 ' + cid + '；\'1\'=开 \'0\'=关 缺失=默认值）：'];
@@ -14564,7 +14565,7 @@ const done = function () { L[swIdx] = lines.join('\n'); res(); };
 const one = function (short) {
 let lsV = null, memV = null;
 try { lsV = localStorage.getItem(P + short); } catch (e3) { lsV = '(读失败)'; }
-try { memV = window.xyStore(P).get(short); } catch (e3) { memV = '(读失败)'; }
+try { memV = window.xyStore(SP).get(short); } catch (e3) { memV = '(读失败)'; }
 const li = lines.length;
 lines.push('· ' + short + '：LS=' + fmt(lsV) + ' 读取=' + fmt(memV) + ' IDB=…');
 if (!window.idbGet) { lines[li] = lines[li].replace('IDB=…', 'IDB=(接口不可用)'); if (--pend <= 0) done(); return; }
@@ -16730,9 +16731,11 @@ const EXCLUDE = ['contacts', 'active-contact', 'feed-posts', 'migrated-v1', 'js-
 'pomo-companion', 'pomo-companion-log', 'pomo-cmp-usecards',
 'memo-app-items', 'memo-app-send', 'memo-app-global-migrated',
 'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker',
+'full-beauty-schemes', 'beauty-undo-stack', 'ver-update-ack-ts', 'ver-update-notify',
 'call-active'];
 function isExcluded(k) {
 const r = k.slice(G.length + 1);
+if (r.indexOf('__') === 0) return true;
 if (EXCLUDE.indexOf(r) >= 0) return true;
 if (r.indexOf('reply-gc-') === 0) return true;
 if (r.indexOf('music-file:') === 0) return true;
@@ -16991,7 +16994,8 @@ try { def.remove(k); } catch (e) {}
 } catch (e) {}
 ['pomo-cfg', 'pomo-today', 'pomo-total', 'pomo-msgs', 'pomo-send-chat', 'pomo-bell',
 'pomo-companion', 'pomo-companion-log', 'pomo-cmp-usecards',
-'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker', 'desk-freq-mode'].forEach(function (k) {
+'beauty-schemes', 'chat-beauty-schemes', 'hide-ta-sticker', 'desk-freq-mode',
+'full-beauty-schemes', 'beauty-undo-stack'].forEach(function (k) {
 const v = def.get(k);
 if (v !== null && v !== undefined && v !== '') {
 try { if (root.get(k) === null || root.get(k) === undefined) root.set(k, v); } catch (e) {}
@@ -17006,6 +17010,16 @@ if (!k) continue;
 if (k.indexOf(G + ':default:default:') === 0) garbage.push(k);
 }
 garbage.forEach(k => {
+try { localStorage.removeItem(k); } catch (e) {}
+if (window.idbDelete) try { window.idbDelete(k); } catch (e) {}
+});
+const sysGarbage = [];
+for (let i = 0; i < localStorage.length; i++) {
+const k = localStorage.key(i);
+if (!k) continue;
+if (k.indexOf(G + ':default:__') === 0) sysGarbage.push(k);
+}
+sysGarbage.forEach(k => {
 try { localStorage.removeItem(k); } catch (e) {}
 if (window.idbDelete) try { window.idbDelete(k); } catch (e) {}
 });
@@ -54864,7 +54878,8 @@ updateBadge();
 const uid = 'xy-home-v2';
 const store = window.xyStore(uid);
 (function feedRootRescue() {
-const KEYS = ['feed-notices', 'feed-app-unread', 'feed-cover-bg', 'feed-ta-cover', 'feed-ta-name', 'feed-ta-avatar', 'feed-user-name', 'feed-user-avatar'];
+const KEYS = ['feed-notices', 'feed-app-unread'];
+const DESK_KEYS = ['feed-cover-bg', 'feed-ta-cover', 'feed-ta-name', 'feed-ta-avatar', 'feed-user-name', 'feed-user-avatar'];
 function run() {
 try {
 const root = window.xyStore('xy-home-v2');
@@ -54879,6 +54894,19 @@ if (dv !== null && dv !== undefined && dv !== '') {
 try { root.set(k, dv); } catch (e) {}
 try { def.remove(k); } catch (e) {}
 }
+});
+DESK_KEYS.forEach(function (k) {
+let dv = null;
+try { dv = def.get(k); } catch (e) {}
+if (dv !== null && dv !== undefined && dv !== '') return; // per-cid 现行值：绝不动更不删（#232 根因）
+let rv = null;
+try { rv = root.get(k); } catch (e) {}
+if (rv === null || rv === undefined || rv === '') return;
+try {
+window.idbHasKey('xy-home-v2:default:' + k).then(function (has) {
+if (has === false) { try { def.set(k, rv); } catch (e) {} }
+}).catch(function () {});
+} catch (e) {}
 });
 (function deskSchedRescue() {
 const today = feedToday();
@@ -80555,4 +80583,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq55x3h -->
+<!-- __MOCHI_EOF__ mtq64l9y -->

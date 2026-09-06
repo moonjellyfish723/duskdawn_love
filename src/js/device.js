@@ -1111,6 +1111,9 @@
       jobs.push(new Promise(function (res) {
         const cid = String(window.__activeCid || 'default');
         const P = G + cid + ':';
+        // #234：xyStore 的前缀参数不带尾冒号（内部自拼':'）——此前把带尾冒号的 P 传进去
+        // 拼出 default::cs-xxx 双冒号键，「读取」列恒为缺失，误导持久化体检判读
+        const SP = G + ':' + cid;
         const fmt = function (v) { return v === null || v === undefined ? '缺失' : JSON.stringify(String(v)); };
         const KEYS = ['dc-enabled', 'dc-use-chat', 'dc-use-mail', 'dc-use-feed', 'dc-cat-main', 'cs-voice-send'];
         const lines = ['开关持久化体检（当前桌面 ' + cid + '；\'1\'=开 \'0\'=关 缺失=默认值）：'];
@@ -1126,7 +1129,7 @@
         const one = function (short) {
           let lsV = null, memV = null;
           try { lsV = localStorage.getItem(P + short); } catch (e3) { lsV = '(读失败)'; }
-          try { memV = window.xyStore(P).get(short); } catch (e3) { memV = '(读失败)'; }
+          try { memV = window.xyStore(SP).get(short); } catch (e3) { memV = '(读失败)'; }
           const li = lines.length;
           lines.push('· ' + short + '：LS=' + fmt(lsV) + ' 读取=' + fmt(memV) + ' IDB=…');
           if (!window.idbGet) { lines[li] = lines[li].replace('IDB=…', 'IDB=(接口不可用)'); if (--pend <= 0) done(); return; }
