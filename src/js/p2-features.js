@@ -2091,6 +2091,10 @@ if (ckRefresh) {
     if (window.isDefaultCardOff) arr = arr.filter(c => !window.isDefaultCardOff(cat, c));
     return arr.length ? arr.slice() : (fallback || []).slice();
   }
+  // v3.32.x #132：功能字卡触发概率统一读 dcf-<分类>（字卡库【其他互动功能字卡】页可调，
+  // 默认=各分类历史值）——未设置时回退 dcfGet 内置默认，行为不变
+  function dcfP(cat, def) { try { if (window.dcfGet) return window.dcfGet(cat); } catch (e) {} return def; }
+  function dcfHit(cat) { return Math.random() * 100 < dcfP(cat, 100); }
   function toast(msg) {
     let t = document.getElementById('cc-toast');
     if (!t) { t = document.createElement('div'); t.id = 'cc-toast'; document.body.appendChild(t); }
@@ -2224,7 +2228,8 @@ if (ckRefresh) {
     if (knock < 3) { if (hint) hint.textContent = '再敲 ' + (3 - knock) + ' 下'; knockTimer = setTimeout(tpResetKnock, 5000); return; }
     const area = document.getElementById('tp-knock-area');
     const pool = tpPool();
-    if (Math.random() < 0.6) {
+    // v3.32.x #132：同频字卡概率接 dcf-sync（默认 60%=原值，单值替换非叠加）
+    if (Math.random() * 100 < dcfP('sync', 60)) {
       vibrate([40, 60, 40, 60, 40]);
       if (area) area.classList.add('flash');
       setTimeout(() => { if (area) area.classList.remove('flash'); }, 700);
@@ -2287,7 +2292,8 @@ if (ckRefresh) {
     const glow = document.getElementById('ss-glow'); if (glow) glow.classList.add('reach');
     setTimeout(() => {
       if (glow) glow.classList.remove('reach');
-      if (Math.random() < 0.55) {
+      // v3.32.x #132：伸手字卡概率接 dcf-reach（默认 55%=原值，单值替换非叠加）
+      if (Math.random() * 100 < dcfP('reach', 55)) {
         const feel = SS_FEEL[Math.floor(Math.random() * SS_FEEL.length)];
         const cards = libPool('reach', '触感·' + feel.label, feel.cards).concat(ssCards());
         const txt = cards[Math.floor(Math.random() * cards.length)];
@@ -2477,6 +2483,8 @@ if (ckRefresh) {
     const base = h < 6 ? 0.08 : (h < 9 ? 0.15 : 0.22);
     const p = waterChatDone() ? base * 0.25 : base;
     if (Math.random() >= p) return;
+    // v3.32.x #132：定时催水字卡概率接 dcf-water（默认 100=原节奏，0 即彻底不来聊天催水）
+    if (!dcfHit('water')) return;
     if (!(window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }))) return;
     window.taChimeUse('water-chat');
     waterTaChatSend();
@@ -2490,7 +2498,8 @@ if (ckRefresh) {
     const t = waterToday(); const g = waterGoal();
     if (t.count < g && Date.now() - last > 2 * 3600000) {
       // 世界观：偶尔他视角浮层（灵体在身边提醒），否则原系统语态
-      if (window.taChimeAllow && window.taChimeAllow('water-ta', { cooldown: 30 * 60 * 1000, dailyMax: 3 }) && Math.random() < 0.5) {
+      // v3.32.x #132：喝水字卡概率接 dcf-water（默认 100=原节奏乘法门控，0 即不来）
+      if (window.taChimeAllow && window.taChimeAllow('water-ta', { cooldown: 30 * 60 * 1000, dailyMax: 3 }) && dcfHit('water') && Math.random() < 0.5) {
         window.taChimeUse('water-ta');
         const gentle = libPool('water', 'ta视角温柔提醒', DEF_WATER_TA_GENTLE);
         const m = gentle[Math.floor(Math.random() * gentle.length)];
@@ -2504,7 +2513,8 @@ if (ckRefresh) {
     // 不再要求「未打卡达标」（懒得打卡也照常来催）；已达标降为约 1/4 概率改发夸奖
     if (Date.now() - last > 2 * 3600000) {
       const wp = waterChatDone() ? 0.09 : 0.35;
-      if (!waterChatGroupAllOff() && window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }) && Math.random() < wp) {
+      // v3.32.x #132：聊天催水字卡概率接 dcf-water（默认 100=原节奏乘法门控，0 即不来）
+      if (!waterChatGroupAllOff() && dcfHit('water') && window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }) && Math.random() < wp) {
         window.taChimeUse('water-chat');
         waterTaChatSend();
       }
@@ -2924,7 +2934,8 @@ if (ckRefresh) {
     if (window.chatAddIn) { try { window.chatAddIn(text, { tag: '吃饭提醒' }); } catch (e) {} }
     try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
     // 35% 概率隔一小会儿再补一句「追问关心」（第 2+ 条不重复响提示音，同回复链惯例）
-    if (Math.random() < 0.35) {
+    // v3.32.x #132：吃饭字卡概率接 dcf-eat（默认 35%=原值，单值替换非叠加）
+    if (Math.random() * 100 < dcfP('eat', 35)) {
       setTimeout(() => {
         const care = isNight ? libPool('eat', '夜宵关心', DEF_EAT_REMIND_NIGHT_CARE) : libPool('eat', '追问关心', DEF_EAT_REMIND_CARE);
         if (care.length && window.chatAddIn) { try { window.chatAddIn(care[Math.floor(Math.random() * care.length)], { silent: true, tag: '吃饭提醒' }); } catch (e) {} }
@@ -4323,7 +4334,8 @@ if (ckRefresh) {
     let cur = 0; try { cur = parseInt(s.get('fish-total-ta') || '0', 10) || 0; } catch (e) {}
     if (lastTa === null) { lastTa = cur; return; }
     const delta = cur - lastTa;
-    if (delta > 0 && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 }) && Math.random() < 0.35) {
+    // v3.32.x #132：摸鱼字卡概率接 dcf-fish（默认 35%=原值，单值替换非叠加）
+    if (delta > 0 && Math.random() * 100 < dcfP('fish', 35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
       window.taChimeUse('fish-ta-note');
       if (window.taChimeShow) {
         const note = pick(fishPool('摸鱼浮字', FISH_NOTE_FALLBACK));

@@ -185,6 +185,38 @@
       toast('默认字卡' + label + '使用概率：' + nv + '%');
     });
   });
+  // v3.32.x：功能字卡使用概率绑定——其他互动功能字卡页（含查岗页）每个分类一个
+  //   stepper，存键 dcf-<分类>（per-cid，随桌面命名空间）。未设置时回退该分类的
+  //   历史默认值（= 改版前代码里写死的触发概率），行为不变；设 0 即该分类字卡
+  //   触发后不再随机出现。消费方统一走 window.dcfGet(分类) 读。
+  const DCF_DEF = { fish: 35, eat: 35, period: 25, water: 35, garden: 40, sync: 60, reach: 55, cjian: 100, room: 100, piggy: 100, drift: 100, interact: 100, music: 100, deskcheck: 50 };
+  function dcfVal(k) {
+    if (!(k in DCF_DEF)) return 100;
+    try { const v = window.activeStore().get('dcf-' + k); if (v !== null && v !== undefined) { const n = Number(v); if (!isNaN(n)) return Math.max(0, Math.min(100, n)); } } catch (e) {}
+    return DCF_DEF[k];
+  }
+  window.dcfGet = dcfVal;
+  function bindDcfProb() {
+    Object.keys(DCF_DEF).forEach((k) => {
+      const box = document.getElementById('dcf-prob-' + k);
+      const valEl = document.getElementById('dcf-prob-' + k + '-val');
+      if (!box || !valEl) return;
+      valEl.value = String(dcfVal(k));
+      box.querySelector('.stp-min').addEventListener('click', () => {
+        const nv = Math.max(0, (parseInt(valEl.value, 10) || 0) - 5);
+        valEl.value = String(nv);
+        try { window.activeStore().set('dcf-' + k, String(nv)); } catch (e) {}
+        toast('字卡使用概率（' + k + '）：' + nv + '%');
+      });
+      box.querySelector('.stp-max').addEventListener('click', () => {
+        const nv = Math.min(100, (parseInt(valEl.value, 10) || 0) + 5);
+        valEl.value = String(nv);
+        try { window.activeStore().set('dcf-' + k, String(nv)); } catch (e) {}
+        toast('字卡使用概率（' + k + '）：' + nv + '%');
+      });
+    });
+  }
+  bindDcfProb();
   // v3.26.x：小键写日志异步合并（idb.js mochi-wrj-heal）把 dc-* 键修正后，重同步
   // 总开关/场景开关/分类开关的 UI——修荣耀 Edge 杀进程回滚 LS 后「开关退出重进变回去」
   // 且已打开的设置页仍显示旧值的问题
@@ -203,6 +235,11 @@
       ['chat', 'mail', 'feed'].forEach(function (k) {
         const valEl = document.getElementById('dc-overall-' + k + '-val');
         if (valEl) valEl.value = String(dcOverallVal(k));
+      });
+      // v3.32.x：功能字卡概率 stepper 同样随 heal 重同步
+      Object.keys(DCF_DEF).forEach(function (k) {
+        const valEl = document.getElementById('dcf-prob-' + k + '-val');
+        if (valEl) valEl.value = String(dcfVal(k));
       });
     } catch (e) {}
   });

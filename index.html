@@ -8805,9 +8805,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788684096379">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.489</b></span>
-        <span class="sv-deploy">部署于 2026-09-06 16:41<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788688894209">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.490</b></span>
+        <span class="sv-deploy">部署于 2026-09-06 18:01<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9954,7 +9954,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.489</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.490</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10245,7 +10245,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.489</span>
+              <span class="lic-ver">v3.26.490</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -11070,7 +11070,23 @@ transition-duration: .01ms !important;
         </span>
         <span class="ch-name">其他互动功能字卡</span>
       </div>
-      <div class="sm-set-hint" style="padding:8px 16px 0">说明：以下为各功能（摸鱼 / 吃饭 / 经期 / 喝水 / 花园 / 同频 / 伸手 / 此间 / 房间 / 存钱罐 / 漂流瓶 / 互动回应）触发时联系人会使用的自搓字卡，非聊天通用字卡，可逐张开启或关闭。</div>
+      <div class="sm-set-hint" style="padding:8px 16px 0">说明：以下为各功能（摸鱼 / 吃饭 / 经期 / 喝水 / 花园 / 同频 / 伸手 / 此间 / 房间 / 存钱罐 / 漂流瓶 / 互动回应）触发时联系人会使用的自搓字卡，非聊天通用字卡，可逐张开启或关闭。每个分类下方的「使用概率」为该类字卡触发的概率，可自由调整。</div>
+      <!-- v3.32.x：分类使用概率——每个功能分类的触发概率可显示可调（dcf-<分类> 键，默认=历史值） -->
+      <div class="set-group glass" id="dcf-prob-box" style="margin:10px 12px 0">
+        <div class="gs-row"><span>摸鱼字卡概率</span><div class="stepper" id="dcf-prob-fish" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-fish-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>吃饭字卡概率</span><div class="stepper" id="dcf-prob-eat" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-eat-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>经期字卡概率（温柔前缀/动作/经期关心）</span><div class="stepper" id="dcf-prob-period" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-period-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>喝水字卡概率</span><div class="stepper" id="dcf-prob-water" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-water-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>花园字卡概率</span><div class="stepper" id="dcf-prob-garden" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-garden-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>同频字卡概率</span><div class="stepper" id="dcf-prob-sync" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-sync-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>伸手字卡概率</span><div class="stepper" id="dcf-prob-reach" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-reach-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>此间字卡概率</span><div class="stepper" id="dcf-prob-cjian" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-cjian-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>房间字卡概率</span><div class="stepper" id="dcf-prob-room" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-room-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>存钱罐字卡概率</span><div class="stepper" id="dcf-prob-piggy" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-piggy-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>漂流瓶字卡概率</span><div class="stepper" id="dcf-prob-drift" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-drift-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>互动回应字卡概率</span><div class="stepper" id="dcf-prob-interact" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-interact-val" readonly><button class="stp-max">+</button></div></div>
+        <div class="gs-row"><span>音乐字卡概率</span><div class="stepper" id="dcf-prob-music" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-music-val" readonly><button class="stp-max">+</button></div></div>
+      </div>
       <div class="card-tabs" id="fc-tabs">
         <button class="cc-tab sel" data-type="fish">摸鱼</button>
         <button class="cc-tab" data-type="eat">吃饭</button>
@@ -11105,6 +11121,10 @@ transition-duration: .01ms !important;
         <span class="ch-name">联系人跨桌面查岗</span>
       </div>
       <div class="sm-set-hint" style="padding:8px 16px 0">说明：联系人跨桌面查岗分两种方向——「联系人对我查岗」是 TA 主动来查我、我回答后 TA 的回应；「联系人申请我对联系人查岗」是 TA 请我去查 TA、TA 被查时的回应。可逐张开启或关闭。</div>
+      <!-- v3.32.x：查岗回应触发概率（dcf-deskcheck，默认 50%） -->
+      <div class="set-group glass" id="dcf-prob-box-dk" style="margin:10px 12px 0">
+        <div class="gs-row"><span>查岗回应概率</span><div class="stepper" id="dcf-prob-deskcheck" data-min="0" data-max="100" data-step="5"><button class="stp-min">−</button><input class="stp-val" id="dcf-prob-deskcheck-val" readonly><button class="stp-max">+</button></div></div>
+      </div>
       <div class="card-tabs" id="dk-tabs">
         <button class="cc-tab sel" data-type="deskcheck">联系人跨桌面查岗</button>
       </div>
@@ -26922,6 +26942,8 @@ let deskReply = '';
 if (rec && rec.deskCk) {
 try {
 const dir = rec.deskCkDir === 'meToTa' ? 'meToTa' : 'toMe';
+let _dkP = 50;
+try { if (window.dcfGet) _dkP = window.dcfGet('deskcheck'); } catch (e) {}
 const pool = (window.getDeskCheckPool ? window.getDeskCheckPool(dir) : []).concat(
 (window.getCustomCardsFor ? window.getCustomCardsFor(window.__activeCid || 'default') : []).filter(function (c) {
 return typeof c === 'string' && c.trim() && c.indexOf('data:') !== 0;
@@ -26930,7 +26952,7 @@ return typeof c === 'string' && c.trim() && c.indexOf('data:') !== 0;
 if (dir === 'meToTa' && /不要|不用|下次|不了|算了|no/i.test(String(answer))
 && (Math.random() * 100 < 50)) {
 deskReply = ['那好吧，下次想查随时来呀。', '没事，那我把自己交给你保管。', '不查也行，反正我总是会来找你。'][Math.floor(Math.random() * 3)];
-} else if (pool.length && Math.random() * 100 < 50) {
+} else if (pool.length && Math.random() * 100 < _dkP) {
 const n = 1 + Math.floor(Math.random() * Math.min(5, pool.length));
 const used = {};
 const picked = [];
@@ -39298,6 +39320,34 @@ valEl.value = String(nv); dcOverallSet(k, nv);
 toast('默认字卡' + label + '使用概率：' + nv + '%');
 });
 });
+const DCF_DEF = { fish: 35, eat: 35, period: 25, water: 35, garden: 40, sync: 60, reach: 55, cjian: 100, room: 100, piggy: 100, drift: 100, interact: 100, music: 100, deskcheck: 50 };
+function dcfVal(k) {
+if (!(k in DCF_DEF)) return 100;
+try { const v = window.activeStore().get('dcf-' + k); if (v !== null && v !== undefined) { const n = Number(v); if (!isNaN(n)) return Math.max(0, Math.min(100, n)); } } catch (e) {}
+return DCF_DEF[k];
+}
+window.dcfGet = dcfVal;
+function bindDcfProb() {
+Object.keys(DCF_DEF).forEach((k) => {
+const box = document.getElementById('dcf-prob-' + k);
+const valEl = document.getElementById('dcf-prob-' + k + '-val');
+if (!box || !valEl) return;
+valEl.value = String(dcfVal(k));
+box.querySelector('.stp-min').addEventListener('click', () => {
+const nv = Math.max(0, (parseInt(valEl.value, 10) || 0) - 5);
+valEl.value = String(nv);
+try { window.activeStore().set('dcf-' + k, String(nv)); } catch (e) {}
+toast('字卡使用概率（' + k + '）：' + nv + '%');
+});
+box.querySelector('.stp-max').addEventListener('click', () => {
+const nv = Math.min(100, (parseInt(valEl.value, 10) || 0) + 5);
+valEl.value = String(nv);
+try { window.activeStore().set('dcf-' + k, String(nv)); } catch (e) {}
+toast('字卡使用概率（' + k + '）：' + nv + '%');
+});
+});
+}
+bindDcfProb();
 document.addEventListener('mochi-wrj-heal', function () {
 try {
 enabledEl.checked = getEnabled();
@@ -39312,6 +39362,10 @@ if (el) el.checked = getCat(k);
 ['chat', 'mail', 'feed'].forEach(function (k) {
 const valEl = document.getElementById('dc-overall-' + k + '-val');
 if (valEl) valEl.value = String(dcOverallVal(k));
+});
+Object.keys(DCF_DEF).forEach(function (k) {
+const valEl = document.getElementById('dcf-prob-' + k + '-val');
+if (valEl) valEl.value = String(dcfVal(k));
 });
 } catch (e) {}
 });
@@ -43685,6 +43739,7 @@ if (taPauseResumeTimer) { clearTimeout(taPauseResumeTimer); taPauseResumeTimer =
 }
 function taPauseSendCard(group, fallback) {
 try {
+if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('music'))) return;
 let arr = window.getLibPool ? window.getLibPool('music', group, fallback) : (fallback || []);
 if (window.isDefaultCardOff) arr = arr.filter(c => !window.isDefaultCardOff('music', c));
 if (!arr.length) arr = (fallback || []).slice();
@@ -58303,6 +58358,8 @@ let arr = (window.getLibPool ? window.getLibPool(cat, group, fallback) : (fallba
 if (window.isDefaultCardOff) arr = arr.filter(c => !window.isDefaultCardOff(cat, c));
 return arr.length ? arr.slice() : (fallback || []).slice();
 }
+function dcfP(cat, def) { try { if (window.dcfGet) return window.dcfGet(cat); } catch (e) {} return def; }
+function dcfHit(cat) { return Math.random() * 100 < dcfP(cat, 100); }
 function toast(msg) {
 let t = document.getElementById('cc-toast');
 if (!t) { t = document.createElement('div'); t.id = 'cc-toast'; document.body.appendChild(t); }
@@ -58421,7 +58478,7 @@ const hint = document.getElementById('tp-hint');
 if (knock < 3) { if (hint) hint.textContent = '再敲 ' + (3 - knock) + ' 下'; knockTimer = setTimeout(tpResetKnock, 5000); return; }
 const area = document.getElementById('tp-knock-area');
 const pool = tpPool();
-if (Math.random() < 0.6) {
+if (Math.random() * 100 < dcfP('sync', 60)) {
 vibrate([40, 60, 40, 60, 40]);
 if (area) area.classList.add('flash');
 setTimeout(() => { if (area) area.classList.remove('flash'); }, 700);
@@ -58480,7 +58537,7 @@ const hint = document.getElementById('ss-hint'); if (hint) hint.textContent = '�
 const glow = document.getElementById('ss-glow'); if (glow) glow.classList.add('reach');
 setTimeout(() => {
 if (glow) glow.classList.remove('reach');
-if (Math.random() < 0.55) {
+if (Math.random() * 100 < dcfP('reach', 55)) {
 const feel = SS_FEEL[Math.floor(Math.random() * SS_FEEL.length)];
 const cards = libPool('reach', '触感·' + feel.label, feel.cards).concat(ssCards());
 const txt = cards[Math.floor(Math.random() * cards.length)];
@@ -58649,6 +58706,7 @@ if (h >= 23 || h < 6) return; // v3.26.x：23:00-06:00 静默期整天休息，�
 const base = h < 6 ? 0.08 : (h < 9 ? 0.15 : 0.22);
 const p = waterChatDone() ? base * 0.25 : base;
 if (Math.random() >= p) return;
+if (!dcfHit('water')) return;
 if (!(window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }))) return;
 window.taChimeUse('water-chat');
 waterTaChatSend();
@@ -58661,7 +58719,7 @@ let last = 0; try { last = parseInt(s.get('water-last-visit') || '0', 10) || 0; 
 try { s.set('water-last-visit', '' + Date.now()); } catch (e) {}
 const t = waterToday(); const g = waterGoal();
 if (t.count < g && Date.now() - last > 2 * 3600000) {
-if (window.taChimeAllow && window.taChimeAllow('water-ta', { cooldown: 30 * 60 * 1000, dailyMax: 3 }) && Math.random() < 0.5) {
+if (window.taChimeAllow && window.taChimeAllow('water-ta', { cooldown: 30 * 60 * 1000, dailyMax: 3 }) && dcfHit('water') && Math.random() < 0.5) {
 window.taChimeUse('water-ta');
 const gentle = libPool('water', 'ta视角温柔提醒', DEF_WATER_TA_GENTLE);
 const m = gentle[Math.floor(Math.random() * gentle.length)];
@@ -58672,7 +58730,7 @@ const msgs = waterMsgs(); waterShowMsg(msgs[Math.floor(Math.random() * msgs.leng
 }
 if (Date.now() - last > 2 * 3600000) {
 const wp = waterChatDone() ? 0.09 : 0.35;
-if (!waterChatGroupAllOff() && window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }) && Math.random() < wp) {
+if (!waterChatGroupAllOff() && dcfHit('water') && window.taChimeAllow && window.taChimeAllow('water-chat', { cooldown: 50 * 60 * 1000, dailyMax: 4 }) && Math.random() < wp) {
 window.taChimeUse('water-chat');
 waterTaChatSend();
 }
@@ -59069,7 +59127,7 @@ if (!text) return;
 text = text.replace(/\{d\}/g, dish || '饭');
 if (window.chatAddIn) { try { window.chatAddIn(text, { tag: '吃饭提醒' }); } catch (e) {} }
 try { if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } catch (e) {}
-if (Math.random() < 0.35) {
+if (Math.random() * 100 < dcfP('eat', 35)) {
 setTimeout(() => {
 const care = isNight ? libPool('eat', '夜宵关心', DEF_EAT_REMIND_NIGHT_CARE) : libPool('eat', '追问关心', DEF_EAT_REMIND_CARE);
 if (care.length && window.chatAddIn) { try { window.chatAddIn(care[Math.floor(Math.random() * care.length)], { silent: true, tag: '吃饭提醒' }); } catch (e) {} }
@@ -60349,7 +60407,7 @@ const s = window.activeStore && window.activeStore(); if (!s) return;
 let cur = 0; try { cur = parseInt(s.get('fish-total-ta') || '0', 10) || 0; } catch (e) {}
 if (lastTa === null) { lastTa = cur; return; }
 const delta = cur - lastTa;
-if (delta > 0 && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 }) && Math.random() < 0.35) {
+if (delta > 0 && Math.random() * 100 < dcfP('fish', 35) && window.taChimeAllow && window.taChimeAllow('fish-ta-note', { cooldown: 45 * 60 * 1000, dailyMax: 12 })) {
 window.taChimeUse('fish-ta-note');
 if (window.taChimeShow) {
 const note = pick(fishPool('摸鱼浮字', FISH_NOTE_FALLBACK));
@@ -64136,7 +64194,9 @@ if (!status().inPeriod) return text;
 var _dcfg = (window.defaultCardCfg && window.defaultCardCfg()) || {};
 if (_dcfg.enabled === false) return text;
 if (window.defaultCardUse && !window.defaultCardUse('chat')) return text;
-if (Math.random() * 100 >= 25) return text;
+var _warmP = 25;
+try { if (window.dcfGet) _warmP = window.dcfGet('period'); } catch (e) {}
+if (Math.random() * 100 >= _warmP) return text;
 var p = warmPrefix();
 var s = warmSuffix();
 var r = Math.random();
@@ -66660,12 +66720,16 @@ addLog(pName, "\u7ED9 " + (si ? si.name : "\u690D\u7269") + " \u65BD\u4E86\u80A5
 updSt("f", false);
 acted = true;
 }
-if (acted && Math.random() < 0.4) {
+if (acted) {
+var _gP = 40;
+try { if (window.dcfGet) _gP = window.dcfGet('garden'); } catch (e) {}
+if (Math.random() * 100 < _gP) {
 var wmPool = (window.getLibPool ? window.getLibPool("garden", "梦角悄悄话", WM) : WM).slice();
 if (window.isDefaultCardOff) wmPool = wmPool.filter(function (c) { return !window.isDefaultCardOff("garden", c); });
 if (!wmPool.length) wmPool = WM.slice();
 var msg = wmPool[Math.floor(Math.random() * wmPool.length)];
 addLog(pName, "\uD83D\uDC95 " + msg);
+}
 }
 if (acted) {
 data.lpc = Math.floor(Date.now() / 1000);
@@ -67523,6 +67587,7 @@ senseFar: ['好像有一点熟悉的感觉。', '说不上来。……但在。'
 senseNone: ['没有人。', '感觉不到。', '……很安静。']
 };
 function sayLine(group, fallbackKey, noFit) {
+try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('room'))) return ''; } catch (e) {}
 let arr = null;
 try { arr = window.getLibPool ? window.getLibPool('room', group, FB[fallbackKey] || []) : null; } catch (e) {}
 if (!arr || !arr.length) arr = FB[fallbackKey] || [];
@@ -67765,6 +67830,7 @@ statusEl.textContent = d.ta.faint
 }
 let bubT = null;
 function bubble(t) {
+if (!t) return; // v3.32.x #132：sayLine 概率门控关断时返回空串，不出空气泡
 bubbleEl.textContent = t;
 bubbleEl.hidden = false;
 bubbleEl.classList.remove('pop'); void bubbleEl.offsetWidth; bubbleEl.classList.add('pop');
@@ -68368,6 +68434,7 @@ reply: ['看到了。', '好。等我。', '嗯，收到了。', '我也想你�
 sea: ['今天有没有好好休息？', '慢慢来，海不催任何人。', '你已经做得很好了。', '想见的人，总会再见的。']
 };
 function poolLine(group, fbKey, fit) {
+try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('drift'))) return ''; } catch (e) {}
 let arr = null;
 try { arr = window.getLibPool ? window.getLibPool('drift', group, FB[fbKey] || []) : null; } catch (e) {}
 if (!arr || !arr.length) arr = FB[fbKey] || [];
@@ -68511,10 +68578,13 @@ else { m.backAt = now + ri(24, 72) * 3600000; }
 d.mine.forEach(m => {
 if (m.willReply && !m.replied && m.replyAt && now >= m.replyAt) {
 m.replied = now;
-pushGot({ kind: 'reply', from: 'ta', text: poolLine('TA的回应', 'reply'), relateId: m.id });
+const _dl = poolLine('TA的回应', 'reply');
+if (_dl) {
+pushGot({ kind: 'reply', from: 'ta', text: _dl, relateId: m.id });
 if (!m.noticed) {
 m.noticed = true;
 notifyChat('🌊 海上好像有什么漂回来了——去漂流瓶看看吧。');
+}
 }
 }
 });
@@ -68577,7 +68647,7 @@ d.dry = 0;                                        // 出了 TA 瓶，软保底�
 d.day.taGot++;
 head = '💙 ' + pn() + '漂来的瓶子';
 note = sampleHistLine() || poolLine('TA的话', 'ta');
-sig = '—— ' + pn();
+if (note) sig = '—— ' + pn();
 if (Math.random() < 0.2) gift = rnd(ITEMS);
 } else if (kind === 'special') {
 head = '✨ 一个特别的瓶子';
@@ -77213,6 +77283,7 @@ m.appendChild(box);
 document.body.appendChild(m);
 }
 function cjLine(group, fallbackArr) {
+try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('cjian'))) return ''; } catch (e) {}
 let pool = fallbackArr;
 try {
 const lib = window.getLibPool ? window.getLibPool('cjian', group, null) : null;
@@ -77735,10 +77806,11 @@ const lines = [];
 if (nearOnes.length) {
 if (nearOnes.length === 1) lines.push('你安静了一会儿。\n好像有人就在附近。');
 else lines.push('似乎有' + nearOnes.length + '个人。\n有的离得很近。');
-nearOnes.forEach(n => lines.push('「' + n.name + '」\n' + cjLine('感知·气息', ['可以感觉到一点熟悉的气息。'])));
+nearOnes.forEach(n => { const l = cjLine('感知·气息', ['可以感觉到一点熟悉的气息。']); if (l) lines.push('「' + n.name + '」\n' + l); });
 if (farOnes.length) lines.push('还有谁……在很远的地方。');
 } else {
-lines.push(cjLine('感知·落空', ['没有感觉到谁。']));
+const miss = cjLine('感知·落空', ['没有感觉到谁。']);
+if (miss) lines.push(miss);
 lines.push('但这并不代表他们不在。');
 }
 let changedName = null, changedTo = '';
@@ -79723,4 +79795,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtpkbtrv -->
+<!-- __MOCHI_EOF__ mtpn6nsx -->

@@ -414,7 +414,11 @@
       var _dcfg = (window.defaultCardCfg && window.defaultCardCfg()) || {};
       if (_dcfg.enabled === false) return text;
       if (window.defaultCardUse && !window.defaultCardUse('chat')) return text;
-      if (Math.random() * 100 >= 25) return text;
+      // v3.32.x #132：触发概率接字卡库【其他互动功能字卡→经期→使用概率】（dcf-period，
+      // 默认 25%=历史值）——原为硬编码 25%，现可在字卡库调（设 0 即经期语态不出现）
+      var _warmP = 25;
+      try { if (window.dcfGet) _warmP = window.dcfGet('period'); } catch (e) {}
+      if (Math.random() * 100 >= _warmP) return text;
       var p = warmPrefix();
       var s = warmSuffix();
       var r = Math.random();

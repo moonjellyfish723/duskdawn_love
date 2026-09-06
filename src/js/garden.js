@@ -748,13 +748,18 @@ function partnerAct(silent, used) {
     updSt("f", false);
     acted = true;
   }
-  if (acted && Math.random() < 0.4) {
+  if (acted) {
+    // v3.32.x #132：花园字卡概率接 dcf-garden（默认 40%=原值，单值替换非叠加）
+    var _gP = 40;
+    try { if (window.dcfGet) _gP = window.dcfGet('garden'); } catch (e) {}
+    if (Math.random() * 100 < _gP) {
     // v3.13.x：悄悄话走系统预设字卡池（字卡库「花园」tab 同源，dc-off-garden:* 过滤）
     var wmPool = (window.getLibPool ? window.getLibPool("garden", "梦角悄悄话", WM) : WM).slice();
     if (window.isDefaultCardOff) wmPool = wmPool.filter(function (c) { return !window.isDefaultCardOff("garden", c); });
     if (!wmPool.length) wmPool = WM.slice();
     var msg = wmPool[Math.floor(Math.random() * wmPool.length)];
     addLog(pName, "\uD83D\uDC95 " + msg);
+    }
   }
   if (acted) {
     data.lpc = Math.floor(Date.now() / 1000);

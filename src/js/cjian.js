@@ -113,6 +113,9 @@
   // v3.15.x：感知播报句走字卡库【系统预设字卡→此间】同源池（DEFAULT_CARD_DATA.cjian，
   // dc-off-cjian:* 过滤已关卡片，全关回退内置兜底）——与 room/garden 同模式
   function cjLine(group, fallbackArr) {
+    // v3.32.x #132：此间字卡概率接 dcf-cjian（默认 100=原行为，0=感知播报不出字卡，
+    // 此时回退 fallbackArr 首条都不发，返回空串由调用方拼进原句式为空）
+    try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('cjian'))) return ''; } catch (e) {}
     let pool = fallbackArr;
     try {
       const lib = window.getLibPool ? window.getLibPool('cjian', group, null) : null;
@@ -718,10 +721,11 @@
     if (nearOnes.length) {
       if (nearOnes.length === 1) lines.push('你安静了一会儿。\n好像有人就在附近。');
       else lines.push('似乎有' + nearOnes.length + '个人。\n有的离得很近。');
-      nearOnes.forEach(n => lines.push('「' + n.name + '」\n' + cjLine('感知·气息', ['可以感觉到一点熟悉的气息。'])));
+      nearOnes.forEach(n => { const l = cjLine('感知·气息', ['可以感觉到一点熟悉的气息。']); if (l) lines.push('「' + n.name + '」\n' + l); });
       if (farOnes.length) lines.push('还有谁……在很远的地方。');
     } else {
-      lines.push(cjLine('感知·落空', ['没有感觉到谁。']));
+      const miss = cjLine('感知·落空', ['没有感觉到谁。']);
+      if (miss) lines.push(miss);
       lines.push('但这并不代表他们不在。');
     }
     // 一次感知最多产生一次状态变化，且需过 15 分钟状态冷却

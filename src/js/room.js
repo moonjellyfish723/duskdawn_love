@@ -55,6 +55,8 @@
     senseNone: ['没有人。', '感觉不到。', '……很安静。']
   };
   function sayLine(group, fallbackKey, noFit) {
+    // v3.32.x #132：房间字卡概率接 dcf-room（默认 100=点击必有回应，0=点击不出字卡）
+    try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('room'))) return ''; } catch (e) {}
     let arr = null;
     try { arr = window.getLibPool ? window.getLibPool('room', group, FB[fallbackKey] || []) : null; } catch (e) {}
     if (!arr || !arr.length) arr = FB[fallbackKey] || [];
@@ -314,6 +316,7 @@
   }
   let bubT = null;
   function bubble(t) {
+    if (!t) return; // v3.32.x #132：sayLine 概率门控关断时返回空串，不出空气泡
     bubbleEl.textContent = t;
     bubbleEl.hidden = false;
     bubbleEl.classList.remove('pop'); void bubbleEl.offsetWidth; bubbleEl.classList.add('pop');

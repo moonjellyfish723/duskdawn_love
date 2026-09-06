@@ -3799,6 +3799,8 @@
   // 从系统预设字卡「音乐」分类抽字卡发进聊天（过滤已关闭单卡，全关回退内置兜底）
   function taPauseSendCard(group, fallback) {
     try {
+      // v3.32.x #132：音乐字卡概率接 dcf-music（默认 100=互动照常，0=互动不出字卡）
+      if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('music'))) return;
       let arr = window.getLibPool ? window.getLibPool('music', group, fallback) : (fallback || []);
       if (window.isDefaultCardOff) arr = arr.filter(c => !window.isDefaultCardOff('music', c));
       if (!arr.length) arr = (fallback || []).slice();

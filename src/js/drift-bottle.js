@@ -162,6 +162,8 @@
     sea: ['今天有没有好好休息？', '慢慢来，海不催任何人。', '你已经做得很好了。', '想见的人，总会再见的。']
   };
   function poolLine(group, fbKey, fit) {
+    // v3.32.x #132：漂流瓶字卡概率接 dcf-drift（默认 100=原行为，0=瓶内不出字卡话术）
+    try { if (window.dcfGet && !(Math.random() * 100 < window.dcfGet('drift'))) return ''; } catch (e) {}
     let arr = null;
     try { arr = window.getLibPool ? window.getLibPool('drift', group, FB[fbKey] || []) : null; } catch (e) {}
     if (!arr || !arr.length) arr = FB[fbKey] || [];
@@ -326,16 +328,20 @@
       }
     });
     // ② 双人漂流瓶：TA 的回应到点生成（每条只生成一次），并给聊天发一条一次性轻提示
-    d.mine.forEach(m => {
-      if (m.willReply && !m.replied && m.replyAt && now >= m.replyAt) {
-        m.replied = now;
-        pushGot({ kind: 'reply', from: 'ta', text: poolLine('TA的回应', 'reply'), relateId: m.id });
-        if (!m.noticed) {
-          m.noticed = true;
-          notifyChat('🌊 海上好像有什么漂回来了——去漂流瓶看看吧。');
+      d.mine.forEach(m => {
+        if (m.willReply && !m.replied && m.replyAt && now >= m.replyAt) {
+          m.replied = now;
+          // v3.32.x #132：dcf-drift 关断（0）时 poolLine 返回空串——不出空回应瓶
+          const _dl = poolLine('TA的回应', 'reply');
+          if (_dl) {
+            pushGot({ kind: 'reply', from: 'ta', text: _dl, relateId: m.id });
+            if (!m.noticed) {
+              m.noticed = true;
+              notifyChat('🌊 海上好像有什么漂回来了——去漂流瓶看看吧。');
+            }
+          }
         }
-      }
-    });
+      });
   }
   function takePendingBack() {
     for (let i = 0; i < d.mine.length; i++) {
@@ -405,8 +411,9 @@
         head = '💙 ' + pn() + '漂来的瓶子';
         // 优先从当前桌面聊天记录抽 TA 说过的字卡（含混合气泡逐段拆出的每张）；
         // 记录为空/超大/全是图片语音时回退字卡库【漂流瓶·TA的话】
+        // v3.32.x #132：dcf-drift 关断时 poolLine 返回空串——按空瓶处理不出话术
         note = sampleHistLine() || poolLine('TA的话', 'ta');
-        sig = '—— ' + pn();
+        if (note) sig = '—— ' + pn();
         if (Math.random() < 0.2) gift = rnd(ITEMS);
       } else if (kind === 'special') {
         head = '✨ 一个特别的瓶子';

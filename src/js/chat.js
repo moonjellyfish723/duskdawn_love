@@ -3133,6 +3133,9 @@ try {
 // v3.19.x：按方向取池——deskCkDir 'meToTa'（联系人申请我查 TA）抽「联系人申请我
 // 对联系人查岗」，否则（toMe/旧数据）抽「联系人对我查岗」；拒绝查岗时回一句固定失落话
 const dir = rec.deskCkDir === 'meToTa' ? 'meToTa' : 'toMe';
+// v3.32.x #132：查岗回应概率接 dcf-deskcheck（字卡库【查岗】页可调，默认 50%=原值）
+let _dkP = 50;
+try { if (window.dcfGet) _dkP = window.dcfGet('deskcheck'); } catch (e) {}
 const pool = (window.getDeskCheckPool ? window.getDeskCheckPool(dir) : []).concat(
   (window.getCustomCardsFor ? window.getCustomCardsFor(window.__activeCid || 'default') : []).filter(function (c) {
     return typeof c === 'string' && c.trim() && c.indexOf('data:') !== 0;
@@ -3141,7 +3144,7 @@ const pool = (window.getDeskCheckPool ? window.getDeskCheckPool(dir) : []).conca
 if (dir === 'meToTa' && /不要|不用|下次|不了|算了|no/i.test(String(answer))
   && (Math.random() * 100 < 50)) {
 deskReply = ['那好吧，下次想查随时来呀。', '没事，那我把自己交给你保管。', '不查也行，反正我总是会来找你。'][Math.floor(Math.random() * 3)];
-} else if (pool.length && Math.random() * 100 < 50) {
+} else if (pool.length && Math.random() * 100 < _dkP) {
 const n = 1 + Math.floor(Math.random() * Math.min(5, pool.length));
 const used = {};
 const picked = [];
