@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788724069658">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.509</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 03:47<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788724840455">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.511</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 04:00<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9189,6 +9189,15 @@ transition-duration: .01ms !important;
         <div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v3M5.5 12h3"/><path d="M15.5 11h.01M18.5 13h.01"/></svg></div>
         <div class="ci"><div class="n">TA的邀请·我的添加</div><div class="m">你添加的邀请话术</div></div>
         <div class="t" id="cc-ta-invite-count-mine">0</div>
+      </div>
+      <!-- v3.34.x：自定义字卡全量导入导出——覆盖下方全部自定义库（聊天字卡双作用域/功能卡/寻踪/情话/TA六类） -->
+      <div class="chat-item glass" id="li-cc-full-export">
+        <div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg></div>
+        <div class="ci"><div class="n">自定义字卡·全量导出</div><div class="m">公用/专属字卡·功能卡·寻踪·情话·TA互动 一份 json 备份</div></div>
+      </div>
+      <div class="chat-item glass" id="li-cc-full-import">
+        <div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M4 19h16"/></svg></div>
+        <div class="ci"><div class="n">自定义字卡·全量导入</div><div class="m">从全量导出 json 恢复 · 支持追加合并/整包替换</div></div>
       </div>
       </div>
       <div class="cc-sect-body" id="cc-sect-preset" hidden>
@@ -9961,7 +9970,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.509</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.511</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10261,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.509</span>
+              <span class="lic-ver">v3.26.511</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -18279,6 +18288,7 @@ if (cnt) cnt.textContent = sysN;
 const cntM = document.getElementById('cc-quote-count-mine');
 if (cntM) cntM.textContent = custom.length;
 }
+window.quoteCardsRefreshCounts = updateEntryCount;
 function renderSysList() {
 const el = document.getElementById('cq-sys-list');
 if (!el) return;
@@ -36567,6 +36577,278 @@ render();
 if (mode === 'replace') toast('已替换字卡库 · 共 ' + res.added + ' 张字卡' + fmt + (dropped ? '，丢弃 ' + dropped + ' 条非法媒体' : ''));
 else if (mode === 'current') toast('已导入 ' + res.added + ' 张字卡到「' + (CAT_NAMES[cur] || '当前分类') + '」' + fmt + (res.dup ? '，自动去重 ' + res.dup + ' 条' : '') + (dropped ? '，丢弃 ' + dropped + ' 条非法媒体' : ''));
 else toast('已导入 ' + res.added + ' 张字卡' + fmt + (res.dup ? '，自动去重 ' + res.dup + ' 条' : '') + (dropped ? '，丢弃 ' + dropped + ' 条非法媒体' : ''));
+}
+}
+const CC_FULL_MARK = 'mochi-ccfull';
+const CC_FULL_CK_KEYS = ['place', 'action', 'msg'];
+const CC_FULL_TA_LIBS = [['taAsk', 'ta-ask'], ['taChoose', 'ta-choose'], ['taCurious', 'ta-curious'], ['taRoast', 'ta-roast'], ['taCheckin', 'ta-checkin'], ['taInvite', 'ta-invite']];
+function ccFullRd(st, k, dft) {
+try { const v = JSON.parse(st.get(k) || 'null'); return v == null ? dft : v; } catch (e) { return dft; }
+}
+function ccFullCardCount(g) {
+let n = 0;
+try { Object.keys(g || {}).forEach(t => (g[t] || []).forEach(x => { if (Array.isArray(x) && Array.isArray(x[1])) n += x[1].length; })); } catch (e) {}
+return n;
+}
+function ccFullNormCc(o) {
+const out = (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+CC_ALL_TYPES.forEach(t => { if (!Array.isArray(out[t])) out[t] = []; });
+return out;
+}
+function ccFullMergeCc(cur, inc) {
+const out = ccFullNormCc(cur);
+let added = 0;
+Object.keys(inc || {}).forEach(t => {
+if (!Array.isArray(inc[t])) return;
+if (!Array.isArray(out[t])) out[t] = [];
+inc[t].forEach(pair => {
+if (!Array.isArray(pair) || !pair[0] || typeof pair[0] !== 'string') return;
+const name = pair[0];
+const cards = Array.isArray(pair[1]) ? pair[1].filter(c => typeof c === 'string' && c) : [];
+let g = null;
+for (let i = 0; i < out[t].length; i++) { if (Array.isArray(out[t][i]) && out[t][i][0] === name) { g = out[t][i]; break; } }
+if (!g) { g = [name, []]; out[t].push(g); }
+const have = new Set(g[1]);
+cards.forEach(c => { if (!have.has(c)) { g[1].push(c); have.add(c); added++; } });
+});
+});
+return { obj: out, added: added };
+}
+function ccFullNormItem(x) {
+if (typeof x === 'string') return x.trim() ? { t: x.trim() } : null;
+if (x && typeof x === 'object' && x.t != null && String(x.t).trim()) {
+const o = { t: String(x.t).trim() };
+if (x.grp) o.grp = String(x.grp);
+return o;
+}
+return null;
+}
+function ccFullMergeItems(cur, inc) {
+const arr = (Array.isArray(cur) ? cur : []).map(ccFullNormItem).filter(Boolean);
+const have = {};
+arr.forEach(x => { have[x.t] = true; });
+let added = 0;
+(Array.isArray(inc) ? inc : []).forEach(x => {
+const n = ccFullNormItem(x);
+if (n && !have[n.t]) { arr.push(n); have[n.t] = true; added++; }
+});
+return { list: arr, added: added };
+}
+function ccFullMergeGrpDefs(cur, inc) {
+const arr = (Array.isArray(cur) ? cur : []).filter(g => g && g.id && g.name);
+const byId = {}, byName = {};
+arr.forEach(g => { byId[g.id] = true; byName[g.name] = true; });
+let added = 0;
+(Array.isArray(inc) ? inc : []).forEach(g => {
+if (!g || !g.id || !g.name) return;
+if (byId[g.id] || byName[g.name]) return;
+arr.push({ id: g.id, name: g.name });
+byId[g.id] = true; byName[g.name] = true; added++;
+});
+return { list: arr, added: added };
+}
+function ccFullMergeTa(key, inc) {
+const cur = ccFullRd(store, key, null);
+const base = (cur && typeof cur === 'object' && !Array.isArray(cur)) ? cur : {};
+if (!Array.isArray(base.questions)) base.questions = [];
+if (!Array.isArray(base.groups)) base.groups = [];
+const haveId = {}, haveText = {};
+base.questions.forEach(q => { if (q && typeof q === 'object') { if (q.id) haveId[q.id] = true; if (q.text != null && String(q.text)) haveText[String(q.text)] = true; } });
+let added = 0;
+(Array.isArray(inc.questions) ? inc.questions : []).forEach(q => {
+if (!q || typeof q !== 'object') return;
+const t = q.text != null ? String(q.text) : '';
+if (!t.trim()) return;
+if (q.id && haveId[q.id]) return;
+if (haveText[t]) return;
+const nq = Object.assign({}, q);
+if (!nq.id) nq.id = 'q' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + added;
+base.questions.push(nq);
+haveId[nq.id] = true; haveText[t] = true; added++;
+});
+base.groups = ccFullMergeGrpDefs(base.groups, inc.groups).list;
+store.set(key, JSON.stringify(base));
+return added;
+}
+function ccFullMergeOff(st, key, inc) {
+const cur = ccFullRd(st, key, {});
+const o = (cur && typeof cur === 'object' && !Array.isArray(cur)) ? cur : {};
+Object.keys(inc || {}).forEach(t => {
+if (!Array.isArray(inc[t])) return;
+if (!Array.isArray(o[t])) o[t] = [];
+inc[t].forEach(n => { if (typeof n === 'string' && o[t].indexOf(n) < 0) o[t].push(n); });
+});
+st.set(key, JSON.stringify(o));
+}
+const liCcFullExport = document.getElementById('li-cc-full-export');
+if (liCcFullExport) {
+liCcFullExport.addEventListener('click', () => {
+const build = () => {
+try {
+const data = {};
+data.ccPub = ccFullNormCc(ccFullRd(pubStore(), PUB_KEY, null));
+data.ccOwn = ccFullNormCc(ccFullRd(store, 'cc-groups', null));
+data.ccPubOff = ccFullRd(pubStore(), PUB_OFF_KEY, null);
+data.ccOwnOff = ccFullRd(store, OFF_KEY, null);
+data.checkin = {};
+CC_FULL_CK_KEYS.forEach(k => {
+data.checkin[k] = {
+list: ccFullRd(store, 'checkin-cards-' + k, []),
+groups: ccFullRd(store, 'checkin-cards-groups-' + k, [])
+};
+});
+data.quote = {
+list: ccFullRd(store, 'quote-cards', []),
+groups: ccFullRd(store, 'quote-cards-groups', [])
+};
+CC_FULL_TA_LIBS.forEach(([name, key]) => {
+const d = ccFullRd(store, key, null);
+data[name] = (d && typeof d === 'object' && !Array.isArray(d))
+? { questions: Array.isArray(d.questions) ? d.questions : [], groups: Array.isArray(d.groups) ? d.groups : [] }
+: { questions: [], groups: [] };
+});
+let nItems = 0, nTa = 0;
+CC_FULL_CK_KEYS.forEach(k => { nItems += Array.isArray(data.checkin[k].list) ? data.checkin[k].list.length : 0; });
+nItems += Array.isArray(data.quote.list) ? data.quote.list.length : 0;
+CC_FULL_TA_LIBS.forEach(([name]) => { nTa += Array.isArray(data[name].questions) ? data[name].questions.length : 0; });
+const out = { app: CC_FULL_MARK, v: 1, time: Date.now(), data: data };
+const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+const a = document.createElement('a');
+a.href = URL.createObjectURL(blob);
+a.download = 'mochi自定义字卡全量.json';
+document.body.appendChild(a);
+a.click();
+setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 300);
+toast('已导出全量字卡：聊天字卡 ' + (ccFullCardCount(data.ccPub) + ccFullCardCount(data.ccOwn)) + ' 张 · 寻踪/情话 ' + nItems + ' 条 · TA 题库 ' + nTa + ' 题');
+} catch (e) { toast('导出失败：' + ((e && e.message) || '内部错误')); }
+};
+Promise.resolve(hydrateLibScopes(['public', 'own'])).then(build);
+});
+}
+const liCcFullImport = document.getElementById('li-cc-full-import');
+if (liCcFullImport) {
+liCcFullImport.addEventListener('click', () => {
+if (!window.openModal) return;
+window.openModal('导入自定义字卡（全量）', '', (mode) => { ccFullPickFile(mode); }, {
+noInput: true,
+staticText: '选择导入方式：\n· 追加合并：保留现有字卡，按内容去重并入（推荐）\n· 整包替换：文件里包含的各库清空后完全使用文件内容，未包含在文件里的现有字卡会丢失',
+pills: [
+{ label: '追加合并（自动去重）', value: 'merge' },
+{ label: '整包替换（覆盖现有）', value: 'replace' }
+],
+pill: 'merge'
+});
+});
+function ccFullPickFile(mode) {
+pickFiles('', false, (files) => {
+const f = files && files[0];
+if (!f) return;
+const fname = f.name || '未命名文件';
+const reader = new FileReader();
+const fail = (why) => toast('导入失败：' + why + '（' + fname + '）');
+const handleText = (raw, recover) => {
+let txt = String(raw || '');
+txt = txt.replace(/^[\uFEFF\u200B\u200E\u200F]+/, '');
+if (!txt.trim()) { fail('文件内容为空——iCloud/网盘文件可能没下载完整'); return; }
+let data = null, perr = null;
+try { data = JSON.parse(txt); } catch (e) { perr = e; }
+if (perr) {
+if (/rangeerror|out of memory|内存/i.test(String((perr && (perr.message || perr.name)) || perr || ''))) { fail('文件过大，本机内存不足以一次性解析导入'); return; }
+if (!recover && /\u0000/.test(txt.slice(0, 400))) {
+let odd = 0, even = 0;
+for (let i = 0; i < Math.min(txt.length, 400); i++) { if (txt.charCodeAt(i) === 0) { if (i % 2) odd++; else even++; } }
+reader.onload = () => handleText(reader.result, 'utf16');
+reader.onerror = () => fail('文件读取失败');
+reader.readAsText(f, odd >= even ? 'utf-16le' : 'utf-16be');
+return;
+}
+const ja = txt.indexOf('{'), jb = txt.lastIndexOf('}');
+if (!recover && ja >= 0 && jb > ja && (jb - ja) < 80 * 1024 * 1024) { handleText(txt.slice(ja, jb + 1), 'trim'); return; }
+fail('JSON 解析失败：' + ((perr && perr.message) || '内容不是合法 JSON'));
+return;
+}
+txt = ''; raw = null;
+const d = (data && typeof data === 'object' && !Array.isArray(data)) ? data.data : null;
+if (!d || typeof d !== 'object' || data.app !== CC_FULL_MARK) {
+fail('不是「自定义字卡·全量导出」文件——公用/专属聊天字卡请进对应管理页用「导入数据」，整包恢复请用「设置→数据备份」');
+return;
+}
+Promise.resolve(hydrateLibScopes(['public', 'own'])).then(() => { ccFullApply(d, mode); });
+};
+reader.onload = () => {
+const raw = String(reader.result || '');
+reader.onload = null; reader.onerror = null;
+handleText(raw, '');
+};
+reader.onerror = () => toast('导入失败：文件读取失败，请重选文件再试');
+reader.readAsText(f);
+});
+}
+function ccFullApply(d, mode) {
+try {
+const stat = { cc: 0, items: 0, ta: 0 };
+if (mode === 'replace') {
+if (d.ccPub && typeof d.ccPub === 'object') { const o = ccFullNormCc(d.ccPub); pubStore().set(PUB_KEY, JSON.stringify(o)); stat.cc += ccFullCardCount(o); }
+if (d.ccOwn && typeof d.ccOwn === 'object') { const o = ccFullNormCc(d.ccOwn); store.set('cc-groups', JSON.stringify(o)); stat.cc += ccFullCardCount(o); }
+if (d.ccPubOff && typeof d.ccPubOff === 'object') pubStore().set(PUB_OFF_KEY, JSON.stringify(d.ccPubOff));
+if (d.ccOwnOff && typeof d.ccOwnOff === 'object') store.set(OFF_KEY, JSON.stringify(d.ccOwnOff));
+CC_FULL_CK_KEYS.forEach(k => {
+const c = d.checkin && d.checkin[k];
+if (!c || typeof c !== 'object') return;
+store.set('checkin-cards-' + k, JSON.stringify(Array.isArray(c.list) ? c.list : []));
+store.set('checkin-cards-groups-' + k, JSON.stringify(Array.isArray(c.groups) ? c.groups : []));
+stat.items += Array.isArray(c.list) ? c.list.length : 0;
+});
+if (d.quote && typeof d.quote === 'object') {
+store.set('quote-cards', JSON.stringify(Array.isArray(d.quote.list) ? d.quote.list : []));
+store.set('quote-cards-groups', JSON.stringify(Array.isArray(d.quote.groups) ? d.quote.groups : []));
+stat.items += Array.isArray(d.quote.list) ? d.quote.list.length : 0;
+}
+CC_FULL_TA_LIBS.forEach(([name, key]) => {
+const inc = d[name];
+if (!inc || typeof inc !== 'object') return;
+store.set(key, JSON.stringify({
+questions: Array.isArray(inc.questions) ? inc.questions : [],
+groups: Array.isArray(inc.groups) ? inc.groups : []
+}));
+stat.ta += Array.isArray(inc.questions) ? inc.questions.length : 0;
+});
+} else {
+if (d.ccPub && typeof d.ccPub === 'object') { const r = ccFullMergeCc(ccFullRd(pubStore(), PUB_KEY, {}), d.ccPub); pubStore().set(PUB_KEY, JSON.stringify(r.obj)); stat.cc += r.added; }
+if (d.ccOwn && typeof d.ccOwn === 'object') { const r = ccFullMergeCc(ccFullRd(store, 'cc-groups', {}), d.ccOwn); store.set('cc-groups', JSON.stringify(r.obj)); stat.cc += r.added; }
+if (d.ccPubOff && typeof d.ccPubOff === 'object') ccFullMergeOff(pubStore(), PUB_OFF_KEY, d.ccPubOff);
+if (d.ccOwnOff && typeof d.ccOwnOff === 'object') ccFullMergeOff(store, OFF_KEY, d.ccOwnOff);
+CC_FULL_CK_KEYS.forEach(k => {
+const c = d.checkin && d.checkin[k];
+if (!c || typeof c !== 'object') return;
+const r1 = ccFullMergeItems(ccFullRd(store, 'checkin-cards-' + k, []), c.list);
+store.set('checkin-cards-' + k, JSON.stringify(r1.list));
+store.set('checkin-cards-groups-' + k, JSON.stringify(ccFullMergeGrpDefs(ccFullRd(store, 'checkin-cards-groups-' + k, []), c.groups).list));
+stat.items += r1.added;
+});
+if (d.quote && typeof d.quote === 'object') {
+const r1 = ccFullMergeItems(ccFullRd(store, 'quote-cards', []), d.quote.list);
+store.set('quote-cards', JSON.stringify(r1.list));
+store.set('quote-cards-groups', JSON.stringify(ccFullMergeGrpDefs(ccFullRd(store, 'quote-cards-groups', []), d.quote.groups).list));
+stat.items += r1.added;
+}
+CC_FULL_TA_LIBS.forEach(([name, key]) => {
+const inc = d[name];
+if (!inc || typeof inc !== 'object') return;
+stat.ta += ccFullMergeTa(key, inc);
+});
+}
+pubInvalidate();
+refreshLibCounts(true);
+if (window.quoteCardsRefreshCounts) { try { window.quoteCardsRefreshCounts(); } catch (e) {} }
+if (window.ckCardsRefreshCounts) { try { window.ckCardsRefreshCounts(); } catch (e) {} }
+toast(mode === 'replace'
+? '已整包替换：聊天字卡 ' + stat.cc + ' 张 · 寻踪/情话 ' + stat.items + ' 条 · TA 题库 ' + stat.ta + ' 题'
+: '已合并导入：聊天字卡新增 ' + stat.cc + ' 张 · 寻踪/情话新增 ' + stat.items + ' 条 · TA 题库新增 ' + stat.ta + ' 题');
+} catch (e) {
+toast('导入处理失败：' + ((e && e.message) || '内部错误'));
+try { if (window.__jsErrors) window.__jsErrors.push('[字卡全量导入] ' + ((e && e.message) || e)); } catch (e0) {}
+}
 }
 }
 const ccClearAll = document.getElementById('cc-clear-all');
@@ -58214,6 +58496,7 @@ if (cnt) cnt.textContent = sysTotal;
 const cntM = document.getElementById('cc-checkin-count-mine');
 if (cntM) cntM.textContent = mineTotal;
 }
+window.ckCardsRefreshCounts = updateCkCount;
 function switchCkTab2(tab) {
 ckTab2 = tab;
 const tabsWrap = document.getElementById('ck-tabs');
@@ -80644,4 +80927,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq84lcq -->
+<!-- __MOCHI_EOF__ mtq8l43r -->

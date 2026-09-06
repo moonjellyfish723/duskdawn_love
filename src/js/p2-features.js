@@ -1056,6 +1056,8 @@ if (ckRefresh) {
     const cntM = document.getElementById('cc-checkin-count-mine');
     if (cntM) cntM.textContent = mineTotal;
   }
+  // v3.34.x：暴露给字卡库「自定义字卡·全量导入」刷新列表页角标（我的添加计数）
+  window.ckCardsRefreshCounts = updateCkCount;
   function switchCkTab2(tab) {
     ckTab2 = tab;
     const tabsWrap = document.getElementById('ck-tabs');

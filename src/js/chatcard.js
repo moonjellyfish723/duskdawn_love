@@ -2169,6 +2169,304 @@
     }
   }
 
+  // ================= v3.34.x：自定义字卡全量导入导出（字卡库列表页） =================
+  // 需求：此前只有【公用字卡】【专属字卡】两入口有导入导出，自定义区其余各库都没有出入口
+  //（功能卡存在 cc-groups 内随双作用域走；寻踪日常/今日情话/TA 六类题库的「我的添加」各自散落）。
+  // 这里在字卡库列表页提供一份覆盖全部自定义字卡的 json：
+  //   聊天字卡双作用域（公用 cc-groups-public / 专属 cc-groups，含 13 功能分类与分组停用开关）
+  //   + 寻踪日常三分类（checkin-cards-* 我的添加+自定义分组）
+  //   + 今日情话（quote-cards 我的添加+自定义分组）
+  //   + TA 六类题库（ta-ask/ta-choose/ta-curious/ta-roast/ta-checkin/ta-invite 的 questions+groups，
+  //     不含 settings/问答历史——只搬字卡，概率/开关等属功能设置不随库迁移）。
+  // 导入支持 追加合并（按内容去重）/ 整包替换（以文件为准）；读写前先走 hydrateLibScopes
+  // 权威取回（v3.15.x 懒加载收口同款），避免大键挂起在 IDB 时按空快照读写（#193 同防线）。
+  const CC_FULL_MARK = 'mochi-ccfull';
+  const CC_FULL_CK_KEYS = ['place', 'action', 'msg'];
+  const CC_FULL_TA_LIBS = [['taAsk', 'ta-ask'], ['taChoose', 'ta-choose'], ['taCurious', 'ta-curious'], ['taRoast', 'ta-roast'], ['taCheckin', 'ta-checkin'], ['taInvite', 'ta-invite']];
+  function ccFullRd(st, k, dft) {
+    try { const v = JSON.parse(st.get(k) || 'null'); return v == null ? dft : v; } catch (e) { return dft; }
+  }
+  function ccFullCardCount(g) {
+    let n = 0;
+    try { Object.keys(g || {}).forEach(t => (g[t] || []).forEach(x => { if (Array.isArray(x) && Array.isArray(x[1])) n += x[1].length; })); } catch (e) {}
+    return n;
+  }
+  function ccFullNormCc(o) {
+    const out = (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+    CC_ALL_TYPES.forEach(t => { if (!Array.isArray(out[t])) out[t] = []; });
+    return out;
+  }
+  // cc 双作用域合并：同分类同名分组内按字卡内容去重追加，没有的分组整组补入
+  function ccFullMergeCc(cur, inc) {
+    const out = ccFullNormCc(cur);
+    let added = 0;
+    Object.keys(inc || {}).forEach(t => {
+      if (!Array.isArray(inc[t])) return;
+      if (!Array.isArray(out[t])) out[t] = [];
+      inc[t].forEach(pair => {
+        if (!Array.isArray(pair) || !pair[0] || typeof pair[0] !== 'string') return;
+        const name = pair[0];
+        const cards = Array.isArray(pair[1]) ? pair[1].filter(c => typeof c === 'string' && c) : [];
+        let g = null;
+        for (let i = 0; i < out[t].length; i++) { if (Array.isArray(out[t][i]) && out[t][i][0] === name) { g = out[t][i]; break; } }
+        if (!g) { g = [name, []]; out[t].push(g); }
+        const have = new Set(g[1]);
+        cards.forEach(c => { if (!have.has(c)) { g[1].push(c); have.add(c); added++; } });
+      });
+    });
+    return { obj: out, added: added };
+  }
+  // 寻踪/情话条目合并：旧字符串与新 {t,grp} 对象统一归一后按文本去重
+  function ccFullNormItem(x) {
+    if (typeof x === 'string') return x.trim() ? { t: x.trim() } : null;
+    if (x && typeof x === 'object' && x.t != null && String(x.t).trim()) {
+      const o = { t: String(x.t).trim() };
+      if (x.grp) o.grp = String(x.grp);
+      return o;
+    }
+    return null;
+  }
+  function ccFullMergeItems(cur, inc) {
+    const arr = (Array.isArray(cur) ? cur : []).map(ccFullNormItem).filter(Boolean);
+    const have = {};
+    arr.forEach(x => { have[x.t] = true; });
+    let added = 0;
+    (Array.isArray(inc) ? inc : []).forEach(x => {
+      const n = ccFullNormItem(x);
+      if (n && !have[n.t]) { arr.push(n); have[n.t] = true; added++; }
+    });
+    return { list: arr, added: added };
+  }
+  // 自定义分组定义（[{id,name}]）合并：按 id 或名称去重
+  function ccFullMergeGrpDefs(cur, inc) {
+    const arr = (Array.isArray(cur) ? cur : []).filter(g => g && g.id && g.name);
+    const byId = {}, byName = {};
+    arr.forEach(g => { byId[g.id] = true; byName[g.name] = true; });
+    let added = 0;
+    (Array.isArray(inc) ? inc : []).forEach(g => {
+      if (!g || !g.id || !g.name) return;
+      if (byId[g.id] || byName[g.name]) return;
+      arr.push({ id: g.id, name: g.name });
+      byId[g.id] = true; byName[g.name] = true; added++;
+    });
+    return { list: arr, added: added };
+  }
+  // TA 六类题库合并：按题目文本/ID 去重并入 questions（文件含系统预设，同文本不重复）+ 分组；
+  // 不动 settings/mergedIds/问答历史——各模块下次 load 按既有 merge 规则自行补齐预设
+  function ccFullMergeTa(key, inc) {
+    const cur = ccFullRd(store, key, null);
+    const base = (cur && typeof cur === 'object' && !Array.isArray(cur)) ? cur : {};
+    if (!Array.isArray(base.questions)) base.questions = [];
+    if (!Array.isArray(base.groups)) base.groups = [];
+    const haveId = {}, haveText = {};
+    base.questions.forEach(q => { if (q && typeof q === 'object') { if (q.id) haveId[q.id] = true; if (q.text != null && String(q.text)) haveText[String(q.text)] = true; } });
+    let added = 0;
+    (Array.isArray(inc.questions) ? inc.questions : []).forEach(q => {
+      if (!q || typeof q !== 'object') return;
+      const t = q.text != null ? String(q.text) : '';
+      if (!t.trim()) return;
+      if (q.id && haveId[q.id]) return;
+      if (haveText[t]) return;
+      const nq = Object.assign({}, q);
+      if (!nq.id) nq.id = 'q' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + added;
+      base.questions.push(nq);
+      haveId[nq.id] = true; haveText[t] = true; added++;
+    });
+    base.groups = ccFullMergeGrpDefs(base.groups, inc.groups).list;
+    store.set(key, JSON.stringify(base));
+    return added;
+  }
+  // 分组停用开关合并：并集（同分类同名分组）
+  function ccFullMergeOff(st, key, inc) {
+    const cur = ccFullRd(st, key, {});
+    const o = (cur && typeof cur === 'object' && !Array.isArray(cur)) ? cur : {};
+    Object.keys(inc || {}).forEach(t => {
+      if (!Array.isArray(inc[t])) return;
+      if (!Array.isArray(o[t])) o[t] = [];
+      inc[t].forEach(n => { if (typeof n === 'string' && o[t].indexOf(n) < 0) o[t].push(n); });
+    });
+    st.set(key, JSON.stringify(o));
+  }
+  const liCcFullExport = document.getElementById('li-cc-full-export');
+  if (liCcFullExport) {
+    liCcFullExport.addEventListener('click', () => {
+      const build = () => {
+        try {
+          const data = {};
+          data.ccPub = ccFullNormCc(ccFullRd(pubStore(), PUB_KEY, null));
+          data.ccOwn = ccFullNormCc(ccFullRd(store, 'cc-groups', null));
+          data.ccPubOff = ccFullRd(pubStore(), PUB_OFF_KEY, null);
+          data.ccOwnOff = ccFullRd(store, OFF_KEY, null);
+          data.checkin = {};
+          CC_FULL_CK_KEYS.forEach(k => {
+            data.checkin[k] = {
+              list: ccFullRd(store, 'checkin-cards-' + k, []),
+              groups: ccFullRd(store, 'checkin-cards-groups-' + k, [])
+            };
+          });
+          data.quote = {
+            list: ccFullRd(store, 'quote-cards', []),
+            groups: ccFullRd(store, 'quote-cards-groups', [])
+          };
+          CC_FULL_TA_LIBS.forEach(([name, key]) => {
+            const d = ccFullRd(store, key, null);
+            data[name] = (d && typeof d === 'object' && !Array.isArray(d))
+              ? { questions: Array.isArray(d.questions) ? d.questions : [], groups: Array.isArray(d.groups) ? d.groups : [] }
+              : { questions: [], groups: [] };
+          });
+          let nItems = 0, nTa = 0;
+          CC_FULL_CK_KEYS.forEach(k => { nItems += Array.isArray(data.checkin[k].list) ? data.checkin[k].list.length : 0; });
+          nItems += Array.isArray(data.quote.list) ? data.quote.list.length : 0;
+          CC_FULL_TA_LIBS.forEach(([name]) => { nTa += Array.isArray(data[name].questions) ? data[name].questions.length : 0; });
+          const out = { app: CC_FULL_MARK, v: 1, time: Date.now(), data: data };
+          const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'mochi自定义字卡全量.json';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 300);
+          toast('已导出全量字卡：聊天字卡 ' + (ccFullCardCount(data.ccPub) + ccFullCardCount(data.ccOwn)) + ' 张 · 寻踪/情话 ' + nItems + ' 条 · TA 题库 ' + nTa + ' 题');
+        } catch (e) { toast('导出失败：' + ((e && e.message) || '内部错误')); }
+      };
+      // 导出前也走权威取回链：挂起在 IDB 的大键先拉回 store 再读（与列表页角标同一防线）
+      Promise.resolve(hydrateLibScopes(['public', 'own'])).then(build);
+    });
+  }
+  const liCcFullImport = document.getElementById('li-cc-full-import');
+  if (liCcFullImport) {
+    liCcFullImport.addEventListener('click', () => {
+      if (!window.openModal) return;
+      window.openModal('导入自定义字卡（全量）', '', (mode) => { ccFullPickFile(mode); }, {
+        noInput: true,
+        staticText: '选择导入方式：\n· 追加合并：保留现有字卡，按内容去重并入（推荐）\n· 整包替换：文件里包含的各库清空后完全使用文件内容，未包含在文件里的现有字卡会丢失',
+        pills: [
+          { label: '追加合并（自动去重）', value: 'merge' },
+          { label: '整包替换（覆盖现有）', value: 'replace' }
+        ],
+        pill: 'merge'
+      });
+    });
+    function ccFullPickFile(mode) {
+      // accept 放开为全文件（同字卡库导入 v3.23.x 口径：部分安卓壳对 .json 过滤灰显），
+      // 格式由读取后的内容校验兜底
+      pickFiles('', false, (files) => {
+        const f = files && files[0];
+        if (!f) return;
+        const fname = f.name || '未命名文件';
+        const reader = new FileReader();
+        const fail = (why) => toast('导入失败：' + why + '（' + fname + '）');
+        const handleText = (raw, recover) => {
+          let txt = String(raw || '');
+          txt = txt.replace(/^[\uFEFF\u200B\u200E\u200F]+/, '');
+          if (!txt.trim()) { fail('文件内容为空——iCloud/网盘文件可能没下载完整'); return; }
+          let data = null, perr = null;
+          try { data = JSON.parse(txt); } catch (e) { perr = e; }
+          if (perr) {
+            if (/rangeerror|out of memory|内存/i.test(String((perr && (perr.message || perr.name)) || perr || ''))) { fail('文件过大，本机内存不足以一次性解析导入'); return; }
+            // 自救①：转存变 UTF-16（读出成串 NUL）——按字节序换编码重读一遍
+            if (!recover && /\u0000/.test(txt.slice(0, 400))) {
+              let odd = 0, even = 0;
+              for (let i = 0; i < Math.min(txt.length, 400); i++) { if (txt.charCodeAt(i) === 0) { if (i % 2) odd++; else even++; } }
+              reader.onload = () => handleText(reader.result, 'utf16');
+              reader.onerror = () => fail('文件读取失败');
+              reader.readAsText(f, odd >= even ? 'utf-16le' : 'utf-16be');
+              return;
+            }
+            // 自救②：前后被包了说明文字/网页源码——裁出首个 { 到末个 } 再试
+            const ja = txt.indexOf('{'), jb = txt.lastIndexOf('}');
+            if (!recover && ja >= 0 && jb > ja && (jb - ja) < 80 * 1024 * 1024) { handleText(txt.slice(ja, jb + 1), 'trim'); return; }
+            fail('JSON 解析失败：' + ((perr && perr.message) || '内容不是合法 JSON'));
+            return;
+          }
+          txt = ''; raw = null;
+          const d = (data && typeof data === 'object' && !Array.isArray(data)) ? data.data : null;
+          if (!d || typeof d !== 'object' || data.app !== CC_FULL_MARK) {
+            fail('不是「自定义字卡·全量导出」文件——公用/专属聊天字卡请进对应管理页用「导入数据」，整包恢复请用「设置→数据备份」');
+            return;
+          }
+          // 大键先走权威取回链（同导出口径），落定后再合并/替换写入
+          Promise.resolve(hydrateLibScopes(['public', 'own'])).then(() => { ccFullApply(d, mode); });
+        };
+        reader.onload = () => {
+          const raw = String(reader.result || '');
+          reader.onload = null; reader.onerror = null;
+          handleText(raw, '');
+        };
+        reader.onerror = () => toast('导入失败：文件读取失败，请重选文件再试');
+        reader.readAsText(f);
+      });
+    }
+    function ccFullApply(d, mode) {
+      try {
+        const stat = { cc: 0, items: 0, ta: 0 };
+        if (mode === 'replace') {
+          // 整包替换：文件里包含的各库清空后按文件写入；文件里没有的库不动
+          if (d.ccPub && typeof d.ccPub === 'object') { const o = ccFullNormCc(d.ccPub); pubStore().set(PUB_KEY, JSON.stringify(o)); stat.cc += ccFullCardCount(o); }
+          if (d.ccOwn && typeof d.ccOwn === 'object') { const o = ccFullNormCc(d.ccOwn); store.set('cc-groups', JSON.stringify(o)); stat.cc += ccFullCardCount(o); }
+          if (d.ccPubOff && typeof d.ccPubOff === 'object') pubStore().set(PUB_OFF_KEY, JSON.stringify(d.ccPubOff));
+          if (d.ccOwnOff && typeof d.ccOwnOff === 'object') store.set(OFF_KEY, JSON.stringify(d.ccOwnOff));
+          CC_FULL_CK_KEYS.forEach(k => {
+            const c = d.checkin && d.checkin[k];
+            if (!c || typeof c !== 'object') return;
+            store.set('checkin-cards-' + k, JSON.stringify(Array.isArray(c.list) ? c.list : []));
+            store.set('checkin-cards-groups-' + k, JSON.stringify(Array.isArray(c.groups) ? c.groups : []));
+            stat.items += Array.isArray(c.list) ? c.list.length : 0;
+          });
+          if (d.quote && typeof d.quote === 'object') {
+            store.set('quote-cards', JSON.stringify(Array.isArray(d.quote.list) ? d.quote.list : []));
+            store.set('quote-cards-groups', JSON.stringify(Array.isArray(d.quote.groups) ? d.quote.groups : []));
+            stat.items += Array.isArray(d.quote.list) ? d.quote.list.length : 0;
+          }
+          CC_FULL_TA_LIBS.forEach(([name, key]) => {
+            const inc = d[name];
+            if (!inc || typeof inc !== 'object') return;
+            store.set(key, JSON.stringify({
+              questions: Array.isArray(inc.questions) ? inc.questions : [],
+              groups: Array.isArray(inc.groups) ? inc.groups : []
+            }));
+            stat.ta += Array.isArray(inc.questions) ? inc.questions.length : 0;
+          });
+        } else {
+          if (d.ccPub && typeof d.ccPub === 'object') { const r = ccFullMergeCc(ccFullRd(pubStore(), PUB_KEY, {}), d.ccPub); pubStore().set(PUB_KEY, JSON.stringify(r.obj)); stat.cc += r.added; }
+          if (d.ccOwn && typeof d.ccOwn === 'object') { const r = ccFullMergeCc(ccFullRd(store, 'cc-groups', {}), d.ccOwn); store.set('cc-groups', JSON.stringify(r.obj)); stat.cc += r.added; }
+          if (d.ccPubOff && typeof d.ccPubOff === 'object') ccFullMergeOff(pubStore(), PUB_OFF_KEY, d.ccPubOff);
+          if (d.ccOwnOff && typeof d.ccOwnOff === 'object') ccFullMergeOff(store, OFF_KEY, d.ccOwnOff);
+          CC_FULL_CK_KEYS.forEach(k => {
+            const c = d.checkin && d.checkin[k];
+            if (!c || typeof c !== 'object') return;
+            const r1 = ccFullMergeItems(ccFullRd(store, 'checkin-cards-' + k, []), c.list);
+            store.set('checkin-cards-' + k, JSON.stringify(r1.list));
+            store.set('checkin-cards-groups-' + k, JSON.stringify(ccFullMergeGrpDefs(ccFullRd(store, 'checkin-cards-groups-' + k, []), c.groups).list));
+            stat.items += r1.added;
+          });
+          if (d.quote && typeof d.quote === 'object') {
+            const r1 = ccFullMergeItems(ccFullRd(store, 'quote-cards', []), d.quote.list);
+            store.set('quote-cards', JSON.stringify(r1.list));
+            store.set('quote-cards-groups', JSON.stringify(ccFullMergeGrpDefs(ccFullRd(store, 'quote-cards-groups', []), d.quote.groups).list));
+            stat.items += r1.added;
+          }
+          CC_FULL_TA_LIBS.forEach(([name, key]) => {
+            const inc = d[name];
+            if (!inc || typeof inc !== 'object') return;
+            stat.ta += ccFullMergeTa(key, inc);
+          });
+        }
+        pubInvalidate();
+        refreshLibCounts(true);
+        // 其他库的列表页角标由各自模块维护——暴露的刷新函数存在就同步刷一把
+        if (window.quoteCardsRefreshCounts) { try { window.quoteCardsRefreshCounts(); } catch (e) {} }
+        if (window.ckCardsRefreshCounts) { try { window.ckCardsRefreshCounts(); } catch (e) {} }
+        toast(mode === 'replace'
+          ? '已整包替换：聊天字卡 ' + stat.cc + ' 张 · 寻踪/情话 ' + stat.items + ' 条 · TA 题库 ' + stat.ta + ' 题'
+          : '已合并导入：聊天字卡新增 ' + stat.cc + ' 张 · 寻踪/情话新增 ' + stat.items + ' 条 · TA 题库新增 ' + stat.ta + ' 题');
+      } catch (e) {
+        toast('导入处理失败：' + ((e && e.message) || '内部错误'));
+        try { if (window.__jsErrors) window.__jsErrors.push('[字卡全量导入] ' + ((e && e.message) || e)); } catch (e0) {}
+      }
+    }
+  }
+
   // ================= 清除全部字卡（v3.6.x） =================
   // 一键清空所有分类的全部字卡与全部分组；危险操作，需二次确认
   const ccClearAll = document.getElementById('cc-clear-all');

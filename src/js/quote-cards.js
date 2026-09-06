@@ -133,6 +133,8 @@
     const cntM = document.getElementById('cc-quote-count-mine');
     if (cntM) cntM.textContent = custom.length;
   }
+  // v3.34.x：暴露给字卡库「自定义字卡·全量导入」刷新列表页角标（我的添加计数）
+  window.quoteCardsRefreshCounts = updateEntryCount;
   // 渲染【系统预设】tab：每句带单卡开关，不可删除；关闭总开关时灰化提示
   function renderSysList() {
     const el = document.getElementById('cq-sys-list');
