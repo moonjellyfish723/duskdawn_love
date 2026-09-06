@@ -2158,6 +2158,9 @@ window.mochiViewportForm = function (sig) {
     // #209：用户「顶部避让修正」声明（#186：声明=覆盖形态）——此前漏传，判定器
     // force 分支在真实采集路径永不命中
     inp.force = (function () { try { return localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (e) { return false; } })();
+    // #215：历史对比键别名（快照存 ori/fs，采集器字段是 orientation/fsActive）
+    inp.ori = inp.orientation;
+    inp.fs = inp.fsActive;
     return inp;
   }
   function collectScreenDiag(remoteTs) {
@@ -2327,11 +2330,12 @@ window.mochiViewportForm = function (sig) {
     const list = sdHistLoad();
     if (!list.length) return '（无历史快照，本次已存档 baseline）';
     const prev = list[list.length - 1];
-    const keys = ['scale','envTop','varTop','diff','innerW','innerH','phoneW','phoneH','phonePadTop','phoneBottom','sbTop','tabBottom','iosH','ori','fs'];
+    // 快照键 → 采集键映射（ori/fs 在采集器里叫 orientation/fsActive，名字不同）
+    const PAIRS = [['scale','scale'],['envTop','envTop'],['varTop','varTop'],['diff','diff'],['innerW','innerW'],['innerH','innerH'],['phoneW','phoneW'],['phoneH','phoneH'],['phonePadTop','phonePadTop'],['phoneBottom','phoneBottom'],['sbTop','sbTop'],['tabBottom','tabBottom'],['iosH','iosH'],['ori','orientation'],['fs','fsActive']];
     const ch = [];
-    keys.forEach(function (k) {
-      const a = prev[k], b = cur[k];
-      if (String(a) !== String(b)) ch.push(k + ': ' + a + ' → ' + b);
+    PAIRS.forEach(function (p) {
+      const a = prev[p[0]], b = cur[p[1]];
+      if (String(a) !== String(b)) ch.push(p[0] + ': ' + a + ' → ' + b);
     });
     const when = new Date(prev.t).toLocaleString();
     return ch.length ? ('与上次（' + when + ' ' + prev.trig + '）对比，变化项：' + ch.join('；')) : ('与上次（' + when + ' ' + prev.trig + '）各项一致');

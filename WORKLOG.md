@@ -1,3 +1,8 @@
+### 2026-09-06 17:2x（#215 屏幕适配诊断历史对比虚假变化项修复：快照键↔采集键字段名映射；已构建）
+* [AI-B 域]（**改动文件：src/js/device.js（sdHistCompare PAIRS 成对映射 + 采集器补 ori/fs 别名）、build.mjs（#175 对比 PAIRS needle 同步）、FIX-REGRESSION.md（#215 行）**）。
+* 用户实测报告暴露：两次连续诊断「历史对比」恒显 ori/fs → undefined 虚假变化（快照键与采集键名字错位），历史对比可信度受损。
+* 验证：node --check 过；--check-sentinels 492 全绿；CDP 端到端两次连续诊断「各项一致」。
+
 ### 2026-09-07 01:0x（#226「刷新后丢美化/丢数据」多机型复发——#166 微批化把写日志标记第二道自愈防线打断；已构建·sw mochi-mtq20nhx·本次构建者：AI-B 本会话）
 - [AI-B 域]（**改动文件：src/js/idb.js（idbSetAll 补挂起超时骨架：按值体积放大 4s~30s、超时置空连接+resolve(false)——wrjMarkFlush「退回逐键 idbSet」与 mochiMediaFlush「回队」两个 false 兜底恢复可达；健康内核路径零变化、#166 微批优化保留）、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#226 行+设备索引「多机型 LS 回滚家族」行）、tools/verify-idb-setall-timeout.mjs（新增 13 断言）**；构建状态：**已构建·sw mochi-mtq20nhx·哨兵 492/492 哑 0·sw 14/14**）。
 - 根因链：用户报「好多手机型号刷新后丢失美化、丢失数据」→ 与 #82/#88 LS 回滚家族同族、#166 后复发。#166 把 wrj 标记落库改成 idbSetAll 150ms 微批，而 idbSetAll 无超时骨架——真我/荣耀/小米 Edge 等挂起内核上标记事务永不落地且 false 兜底不可达：杀进程回滚 LS 后，LS 日志（第一道）与 LS 值同批回滚、IDB 标记（第二道）缺失 → wrjMergeFromIdb 无从自愈 → 美化/设置/近期小数据刷新回退；同一函数挂死还让媒体池 flush 永不回队=表情/图片令牌静默丢。
