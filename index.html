@@ -8805,9 +8805,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788680845495">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.488</b></span>
-        <span class="sv-deploy">部署于 2026-09-06 15:47<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788684096379">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.489</b></span>
+        <span class="sv-deploy">部署于 2026-09-06 16:41<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9954,7 +9954,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.488</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.489</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10245,7 +10245,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.488</span>
+              <span class="lic-ver">v3.26.489</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -79188,6 +79188,29 @@ m.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=
 });
 }
 }
+try {
+if (d.classList.contains('ios-pwa-standalone') && _fsLike() && _phone && !_kbActive && !_kbNowLike()
+&& window.mochiViewportForm && _sh2 > 0 && _ih2 > 0
+&& localStorage.getItem('xy-home-v2:__safe-top-force') === '1') {
+var _sigW = { standalone: true, envTop: _envTopCache >= 0 ? _envTopCache : 0, innerH: _ih2, screenH: _sh2, iosMajor: 0, safeTopForce: true };
+try {
+var _osW = /OS (\d+)_/.exec(navigator.userAgent || '');
+var _vW = /Version\/(\d+)\./.exec(navigator.userAgent || '');
+_sigW.iosMajor = Math.max(_osW ? +_osW[1] : 0, _vW ? +_vW[1] : 0);
+} catch (eW1) {}
+var _fw = window.mochiViewportForm(_sigW);
+if (_fw.forceCover) {
+var _pb = _phone.getBoundingClientRect().bottom;
+var _short = Math.round(_sh2 - _pb);
+if (_short > 8) {
+if (d.style.getPropertyValue('--mochi-safe-top') !== (_fw.safeTop + 'px')) d.style.setProperty('--mochi-safe-top', _fw.safeTop + 'px');
+if (d.style.getPropertyValue('--mochi-ios-h') !== (_fw.expBase + 'px')) d.style.setProperty('--mochi-ios-h', _fw.expBase + 'px');
+if (_phone.style.height) _phone.style.height = ''; // 清键盘期内联高度，回落 var 期望值
+try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch (eS2) {}
+}
+}
+}
+} catch (eW0) {}
 var foc = isTextEl(_textFocused) || isTextEl(document.activeElement);
 if (!foc && !_kbNowLike()) {
 if (_kbActive) restoreKb();
@@ -79700,4 +79723,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtpie5dj -->
+<!-- __MOCHI_EOF__ mtpkbtrv -->

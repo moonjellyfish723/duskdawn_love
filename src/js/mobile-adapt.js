@@ -1180,6 +1180,35 @@
               });
             }
           }
+          // v3.26.x #212：force 声明形态的自愈看门狗——用户开启【顶部避让修正】后
+          // （覆盖声明），发消息的键盘开合周期里 WebKit 偶发把内联高度/滚动位置打回
+          // 预声明前状态（.phone 回 793/文档被拽上移 59）→ 底部白带+页面上移，只能
+          // 重退再进。此处稳态（无键盘无聚焦）下实测验收：.phone 底边应达屏底，
+          // 短缺 >8px 直接重写判定器期望值（var 值 + 内联高度 + scrollTop 校正），
+          // 1s 内自愈，不再依赖用户重进。
+          try {
+            if (d.classList.contains('ios-pwa-standalone') && _fsLike() && _phone && !_kbActive && !_kbNowLike()
+                && window.mochiViewportForm && _sh2 > 0 && _ih2 > 0
+                && localStorage.getItem('xy-home-v2:__safe-top-force') === '1') {
+              var _sigW = { standalone: true, envTop: _envTopCache >= 0 ? _envTopCache : 0, innerH: _ih2, screenH: _sh2, iosMajor: 0, safeTopForce: true };
+              try {
+                var _osW = /OS (\d+)_/.exec(navigator.userAgent || '');
+                var _vW = /Version\/(\d+)\./.exec(navigator.userAgent || '');
+                _sigW.iosMajor = Math.max(_osW ? +_osW[1] : 0, _vW ? +_vW[1] : 0);
+              } catch (eW1) {}
+              var _fw = window.mochiViewportForm(_sigW);
+              if (_fw.forceCover) {
+                var _pb = _phone.getBoundingClientRect().bottom;
+                var _short = Math.round(_sh2 - _pb);
+                if (_short > 8) {
+                  if (d.style.getPropertyValue('--mochi-safe-top') !== (_fw.safeTop + 'px')) d.style.setProperty('--mochi-safe-top', _fw.safeTop + 'px');
+                  if (d.style.getPropertyValue('--mochi-ios-h') !== (_fw.expBase + 'px')) d.style.setProperty('--mochi-ios-h', _fw.expBase + 'px');
+                  if (_phone.style.height) _phone.style.height = ''; // 清键盘期内联高度，回落 var 期望值
+                  try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch (eS2) {}
+                }
+              }
+            }
+          } catch (eW0) {}
           var foc = isTextEl(_textFocused) || isTextEl(document.activeElement);
           if (!foc && !_kbNowLike()) {
             // 键盘会话其实已经结束，却还残留收缩/顶对齐/文档锁/推定停靠 → 无条件复原

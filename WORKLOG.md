@@ -1,3 +1,9 @@
+### 2026-09-06 02:0x（#212 force 形态发消息后白边/上移：healViewport 自愈看门狗；已构建）
+* [AI-B 域]（**改动文件：src/js/mobile-adapt.js（healViewport #212 看门狗：standalone+fs+稳态+force 键 → .phone 底边短缺>8px 即重写 safe-top/ios-h 期望值+清内联高+scrollTop 归零，1s 自愈）、build.mjs（FIX_SENTINELS 1 条）、FIX-REGRESSION.md（#212 行）**）。
+* 根因：force 声明下 .phone=852 超布局视口 59px 属预期，键盘周期 WebKit 偶发打回滚动/内联高 → 白边+上移，瞬态无法源头堵死，看门狗验收式自愈是稳妥方案。
+* 验证：node --check 过；--check-sentinels 458 全绿；产物锚点在位。
+* 待真机（iPhone 15 Pro force 开）：发消息后不再白边（1s 内自动复位）。
+
 ### 2026-09-06 01:4x（#211 诊断工具可发现性：保留/覆盖歧义形态报告引导用户用顶部避让修正开关；已构建）
 * [AI-B 域]（**改动文件：src/js/device.js（判定器对保留形态 force 未开时追加「歧义形态提示」说明行：顶部融合/点不动 → 开【顶部避让修正】即修；force 开启后提示消失）、FIX-REGRESSION.md（#211 行）；构建状态：已构建·sw 见 version.json**）。
 * 动机：iPhone 17 Pro 报障顶栏融合灵动岛点不动——保留/覆盖两形态信号相同程序不可分，全 ✓ 报告掩盖了「开关可自服」的事实。引导行使报告本身成为修复入口。
