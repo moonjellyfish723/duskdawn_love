@@ -248,24 +248,34 @@
       if (!touchBase) return;
       const t = e.touches[0];
       const dx = t.clientX - touchBase.x, dy = t.clientY - touchBase.y;
-      if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
-      // 首次超过阈值锁定主轴，之后只响应该轴（防斜滑抖动误触）
-      if (!lockAxis) lockAxis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
-      let dir;
+      const adx = Math.abs(dx), ady = Math.abs(dy);
+      if (adx < TH && ady < TH) return;
+      // #221 轴锁可解锁：锁定轴响应转向；另一轴偏移显著反超（>1.5×）时改锁并转向——
+      // 原实现一次触摸锁死横/竖轴，L 形拖动（先右后上）必须抬手重滑才能转向＝「按了没反应」；
+      // 1.5× 反超门槛让 45° 斜滑仍沿主轴走不抖动。
+      let dir = null;
       if (lockAxis === 'h') {
-        if (Math.abs(dx) < TH) return;
-        dir = dx > 0 ? 'r' : 'l';
+        if (ady >= TH && ady > adx * 1.5) { lockAxis = 'v'; dir = dy > 0 ? 'd' : 'u'; }
+        else if (adx >= TH) dir = dx > 0 ? 'r' : 'l';
+      } else if (lockAxis === 'v') {
+        if (adx >= TH && adx > ady * 1.5) { lockAxis = 'h'; dir = dx > 0 ? 'r' : 'l'; }
+        else if (ady >= TH) dir = dy > 0 ? 'd' : 'u';
       } else {
-        if (Math.abs(dy) < TH) return;
-        dir = dy > 0 ? 'd' : 'u';
+        lockAxis = adx > ady ? 'h' : 'v';
+        if (lockAxis === 'h') { if (adx >= TH) dir = dx > 0 ? 'r' : 'l'; }
+        else { if (ady >= TH) dir = dy > 0 ? 'd' : 'u'; }
       }
+      if (!dir) return;
+      // #221 无论方向是否变化都把基点跟到当前点：同向重复滑动若不重置基点，
+      // 位移在旧基点上持续累积，之后拐弯时另一轴偏移对累计位移的 1.5× 反超
+      // 永远不成立 → L 形拖动拐不了弯（无头浏览器复现实测）。
+      touchBase = { x: t.clientX, y: t.clientY };
       if (dir === lastTouchDir) return;
       if (dir === 'u') setPlayerDir(0, -1);
       else if (dir === 'd') setPlayerDir(0, 1);
       else if (dir === 'l') setPlayerDir(-1, 0);
       else setPlayerDir(1, 0);
       lastTouchDir = dir;
-      touchBase = { x: t.clientX, y: t.clientY };
     }, { passive: true });
     canvas.addEventListener('touchend', function () {
       touchBase = null; lastTouchDir = null; lockAxis = null;
@@ -274,7 +284,9 @@
       touchBase = null; lastTouchDir = null; lockAxis = null;
     }, { passive: true });
     if (dpadEl) {
-      dpadEl.addEventListener('click', function (e) {
+      // #221 pointerdown 即时转向：原 click 依赖 touchend 后合成，移动端慢一拍且快速连点
+      // 两键时第二次 click 可能不触发；pointerdown 原生即时，click 保留兜底（鼠标/无指针环境）。
+      const dpPress = function (e) {
         const btn = e.target.closest('[data-dir]');
         if (!btn) return;
         e.stopPropagation();
@@ -283,7 +295,12 @@
         else if (d === 'down') setPlayerDir(0, 1);
         else if (d === 'left') setPlayerDir(-1, 0);
         else if (d === 'right') setPlayerDir(1, 0);
+      };
+      dpadEl.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse') return;   // 鼠标走 click，避免双触发
+        dpPress(e);
       });
+      dpadEl.addEventListener('click', dpPress);
     }
     document.addEventListener('keydown', function (e) {
       if (!panel || panel.hidden) return;
@@ -303,9 +320,14 @@
     if (!state || state.status !== 'playing') return;
     const p = state.player;
     if (!p.alive) return;
-    if (x === -p.dir.x && y === -p.dir.y) return;
-    if (p.nextDir && p.nextDir.x === x && p.nextDir.y === y) return;
-    p.nextDir = { x: x, y: y };
+    // #221 双槽输入队列：nextDir 是「下一步」、nextDir2 是「下下一步」，一个 tick 内连给的
+    // 两个转向（如急转弯 上→左）不再互相覆盖吞输入——单槽时后给的把先给的挤掉，玩家感知「按了没反应」。
+    const last = p.nextDir2 || p.nextDir || p.dir;
+    if (x === -last.x && y === -last.y) return;      // 相对「队尾方向」禁止 180° 回头
+    if (last.x === x && last.y === y) return;        // 与队尾同向不重复入队
+    if (!p.nextDir || (p.nextDir.x === p.dir.x && p.nextDir.y === p.dir.y && !p.nextDir2)) p.nextDir = { x: x, y: y };
+    else if (!p.nextDir2) p.nextDir2 = { x: x, y: y };
+    else { p.nextDir = p.nextDir2; p.nextDir2 = { x: x, y: y }; }
     vib(8);
   }
 
@@ -453,8 +475,11 @@
   }
 
   function applyDir(snake) {
-    const nd = snake.nextDir;
-    if (nd && (nd.x !== -snake.dir.x || nd.y !== -snake.dir.y)) snake.dir = nd;
+    // #221 每步只消费队列头一格：nextDir 生效后 nextDir2 顶上来，本 tick 给的第二个
+    // 转向留给下一个 tick 执行（两个紧凑输入=两步各转一次，不再互相覆盖）。
+    const q = snake.nextDir;
+    if (q) { snake.nextDir = snake.nextDir2 || null; snake.nextDir2 = null; }
+    if (q && (q.x !== -snake.dir.x || q.y !== -snake.dir.y)) snake.dir = q;
   }
 
   function bodySet(body, dropTail) {
@@ -1004,7 +1029,10 @@
     return {
       status: state.status, diff: state.diff, gw: state.gw, gh: state.gh,
       running: !!(rafId || countdownTimer),
-      player: { body: cloneBody(state.player.body), alive: state.player.alive, score: Math.floor(state.player.score) },
+      player: { body: cloneBody(state.player.body), alive: state.player.alive, score: Math.floor(state.player.score),
+        dir: { x: state.player.dir.x, y: state.player.dir.y },
+        nextDir: state.player.nextDir ? { x: state.player.nextDir.x, y: state.player.nextDir.y } : null,
+        nextDir2: state.player.nextDir2 ? { x: state.player.nextDir2.x, y: state.player.nextDir2.y } : null },
       opp: { body: cloneBody(state.opp.body), alive: state.opp.alive, score: Math.floor(state.opp.score) },
       foods: state.foods.map(function (f) { return { x: f.x, y: f.y }; }),
       elapsed: state.elapsed

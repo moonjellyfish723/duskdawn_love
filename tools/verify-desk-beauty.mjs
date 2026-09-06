@@ -180,6 +180,38 @@ check('确认「上传图片」后已创建 file input（pickFile 触发）', Nu
 // 清残留 input（防止影响后续 freshLoad）
 await ev("(function(){document.querySelectorAll('input[type=file]').forEach(function(i){try{if(i.parentNode)i.parentNode.removeChild(i);}catch(e){}});return true;})()");
 
+// ============ Bug 5 (#219)：背景模糊/遮罩层必须盖在壁纸常驻图层之上 ============
+// 回归 v3.26.x（小米15Pro/Chrome 报障「背景模糊和背景遮罩功能用不了，调整了数据背景没有
+// 变化」，用户明说其他机型也有）：#147 壁纸改画到常驻图层 #phone-bg-layer（z-index:1）
+// 后，.phone-bg-mask（原 z-index:0）被压在壁纸下面——白遮罩被盖=调遮罩无感，
+// backdrop-filter 向下采样不含壁纸=调模糊也无感。修复：遮罩层 z-index:0→2。
+console.log('\n===== Bug5 (#219) 背景模糊/遮罩层级 =====');
+await freshLoad(null);
+// M1 静态层级：.phone-bg-mask 计算 zIndex 必须 > #phone-bg-layer 的 zIndex
+const zInfo = await ev("(function(){var m=document.querySelector('.phone-bg-mask');var l=document.getElementById('phone-bg-layer');if(!m)return 'no-mask';var zi=parseInt(getComputedStyle(m).zIndex,10);var zl=l?parseInt(getComputedStyle(l).zIndex,10):0;return JSON.stringify({zi:zi,zl:zl});})()");
+try { var zObj = JSON.parse(zInfo); } catch (e) { var zObj = { zi: 0, zl: 0 }; }
+check('M1 遮罩层 zIndex(' + zObj.zi + ') > 壁纸图层 zIndex(' + zObj.zl + ')（#219 核心）', zObj.zi > zObj.zl, zInfo);
+// M2 模糊生效：预置 bg-blur=12 重载 → .blur-on 挂上、计算 backdropFilter 含 blur
+await ev("(function(){var s=window.activeStore();s.set('bg-blur','12');return true;})()");
+await cdp('Page.navigate', { url: baseUrl + '/index.html' });
+await sleep(2000);
+for (let i = 0; i < 40; i++) { if (await ev('!!window.__mochiDataReady')) break; await sleep(250); }
+await ev("(function(){var e=document.getElementById('splash-enter');if(e&&!e.hidden)e.click();var s=document.getElementById('splash');if(s&&!s.classList.contains('hide')){s.classList.add('hide');s.hidden=true;}return true;})()");
+await sleep(800);
+const blurInfo = await ev("(function(){var m=document.querySelector('.phone-bg-mask');if(!m)return 'no-mask';var c=getComputedStyle(m);return JSON.stringify({blurOn:m.classList.contains('blur-on'),bf:c.backdropFilter||c.webkitBackdropFilter||''});})()");
+try { var bObj = JSON.parse(blurInfo); } catch (e) { var bObj = { blurOn: false, bf: '' }; }
+check('M2 bg-blur=12 时 .blur-on 挂上且 backdrop-filter 激活', bObj.blurOn === true && String(bObj.bf).indexOf('blur') >= 0, blurInfo);
+// M3 遮罩生效：预置 bg-mask-op=60 重载 → 遮罩层背景 alpha≈0.6（半透明白真盖在壁纸上=背景变淡）
+await ev("(function(){var s=window.activeStore();s.set('bg-mask-op','60');return true;})()");
+await cdp('Page.navigate', { url: baseUrl + '/index.html' });
+await sleep(2000);
+for (let i = 0; i < 40; i++) { if (await ev('!!window.__mochiDataReady')) break; await sleep(250); }
+await ev("(function(){var e=document.getElementById('splash-enter');if(e&&!e.hidden)e.click();var s=document.getElementById('splash');if(s&&!s.classList.contains('hide')){s.classList.add('hide');s.hidden=true;}return true;})()");
+await sleep(800);
+const maskInfo = await ev("(function(){var m=document.querySelector('.phone-bg-mask');if(!m)return 'no-mask';var c=getComputedStyle(m).backgroundColor;var mt=c.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/);return JSON.stringify({bg:c,a:mt?parseFloat(mt[4]||'1'):1});})()");
+try { var mkObj = JSON.parse(maskInfo); } catch (e) { var mkObj = { a: 0 }; }
+check('M3 bg-mask-op=60 时遮罩 alpha≈0.6（白遮罩真盖在壁纸上）', mkObj.a > 0.55 && mkObj.a < 0.65, maskInfo);
+
 // ============ Bug 4：应用美化方案（桌面，只点底部确定） ============
 console.log('\n===== Bug4 应用桌面美化方案（只点底部确定）=====');
 await freshLoad(null);

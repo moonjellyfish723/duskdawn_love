@@ -3038,10 +3038,10 @@ body.mail-emoji-mode #emoji-panel { bottom: calc(64px + var(--mochi-safe-bottom,
 .snake-res-row { display:flex; justify-content:space-between; font-size:12px; color:var(--ink); padding:3px 12px; }
 .snake-res-time { font-size:11px; color:var(--muted); margin-top:6px; }
 .snake-controls { display:flex; gap:10px; justify-content:center; padding:10px 0 4px; }
-.snake-btn { flex:1; max-width:140px; padding:10px; border:none; border-radius:12px; background:var(--ink); color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+.snake-btn { flex:1; max-width:140px; padding:10px; border:none; border-radius:12px; background:var(--ink); color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .snake-btn:active { opacity:.85; }
 .snake-dpad { display:grid; grid-template-columns:repeat(3,72px); grid-template-rows:repeat(2,64px); gap:8px; justify-content:center; padding:8px 0 2px; }
-.snake-dp { border:1px solid rgba(0,0,0,.12); border-radius:14px; background:rgba(255,255,255,.92); color:var(--ink); font-size:22px; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:transform .08s, background .08s; }
+.snake-dp { border:1px solid rgba(0,0,0,.12); border-radius:14px; background:rgba(255,255,255,.92); color:var(--ink); font-size:22px; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:transform .08s, background .08s; }
 .snake-dp:active { background:rgba(0,0,0,.1); transform:scale(.9); }
 .snake-dp[data-dir="up"] { grid-column:2; grid-row:1; }
 .snake-dp[data-dir="left"] { grid-column:1; grid-row:2; }

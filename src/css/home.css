@@ -16,7 +16,14 @@
    ⚠️ iOS 卡顿红线（AGENTS.md）：blur(0px) 也会保持 backdrop-filter 激活、全屏每帧
    栅格化；因此 blur 值为 0（默认）时不启用 filter（.blur-on 才开），避免常驻全屏 blur */
 .phone-bg-mask {
-  position:absolute; inset:0; z-index:0; pointer-events:none;
+  /* FIX 2026-09-06 #219：z-index 0→2——v3.26.x #147 壁纸改画到常驻图层
+     #phone-bg-layer（personalize.js 注入，z-index:1，插在 .phone 最前）后，
+     本层（z:0）被压到壁纸下面：白色遮罩被盖住调不淡，backdrop-filter 采样
+     不含壁纸=背景模糊也失效（小米15Pro/Chrome 报障，用户明说其他机型也有）。
+     提到 z:2（与 .page/.statusbar/.tabbar 同层、仍在它们下面绘制的兄弟序）
+     重新盖住壁纸层；.page z-index:2 同值后到者胜（DOM 序在 .phone 里更靠后），
+     页面内容不受影响。 */
+  position:absolute; inset:0; z-index:2; pointer-events:none;
   background:rgba(255,255,255,var(--desk-bg-mask-op,0));
   border-radius:inherit;
 }

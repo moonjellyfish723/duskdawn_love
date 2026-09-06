@@ -172,6 +172,19 @@ evs = await evalJs('JSON.stringify(window.__vcr.events)') || '[]';
 evArr = JSON.parse(evs);
 ok(rebuildsOf(evArr).length === 0, 'S4 自己发送不整窗重建', JSON.stringify(rebuildsOf(evArr)));
 
+// —— S5（#220）退出聊天再重开：屏上窗口与 msgs 同窗同貌 → 不得整窗重建（旧行为
+//    enterChat 无条件 renderWindow=重开必闪一下）；补丁路径连消息节点都不动，只滚底 ——
+await evalJs("(function(){var p=document.getElementById('page-chat');if(p)p.hidden=true;var h=document.getElementById('page-phone');if(h)h.hidden=false;return true;})()");
+await sleep(500);
+await evalJs('window.__vcrArm(); window.enterChat(); true');
+await sleep(2500);
+evs = await evalJs('JSON.stringify(window.__vcr.events)') || '[]';
+evArr = JSON.parse(evs);
+ok(rebuildsOf(evArr).length === 0, 'S5 重开聊天不整窗重建（#220 核心：同窗原地补丁）', JSON.stringify(rebuildsOf(evArr)));
+ok(evArr.length === 0, 'S5 重开走补丁零消息区变动（滚底三连不触发 childList）', evs.slice(0, 100));
+const bottomAfter = await evalJs("(function(){var b=document.getElementById('chat-body');return b.scrollHeight-b.scrollTop-b.clientHeight<120;})()");
+ok(bottomAfter === true, 'S5 重开后仍贴底（视觉终点与旧路径一致）', String(bottomAfter));
+
 
 // ===== Part 2：归一化收尾渲染闸（#211 修复2）纯 Node 桩环境行为断言 =====
 // 浏览器端触发依赖真实 IDB 懒读时序（无头下不稳定），改抽真实源码直接验闸门逻辑。

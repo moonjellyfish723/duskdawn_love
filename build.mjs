@@ -471,6 +471,12 @@ const FIX_SENTINELS = [
   { name: '#106 贪吃蛇画布按滚动区实际溢出自查收小（量算总有几像素误差而全屏是裁切的，溢出 1px 就切掉按钮一截；删掉这段循环则误差重新变成点不到）', file: 'js/snake-game.js', needle: 'const over = sc.scrollHeight - sc.clientHeight;' },
   { name: '#106 贪吃蛇结算后重铺全屏画布（showResult 末尾调 refitAll；原实现只调 refitNonFs，全屏 isFs 直接早退＝地图不缩小，用户报「要缩小才能点到再来一局」）', file: 'js/snake-game.js', needle: "refitAll();     // 结算块+再来一局出现后收小画布：半框让方向键一屏可见，全屏防「再来一局」被裁到屏外" },
   { name: '#106 贪吃蛇全屏滚动区兜底可纵向滚（原 overflow:hidden，极矮/横屏格子触到 9px 下限仍放不下时按钮永久不可达）', file: 'css/chat-pages.css', needle: '#chat-snake-panel.snake-fs .poke-card-scroll { overflow:hidden auto;' },
+  // ===== v3.26.x #221：贪吃蛇手机端操作性（多机型「不好操作」反馈）=====
+  { name: '#221 贪吃蛇双槽输入队列（nextDir2 顶替入队：一个 tick 内连给两个转向不再互相覆盖=急转弯不吞输入；改回单槽赋值则挤掉先给的转向）', file: 'js/snake-game.js', needle: 'else { p.nextDir = p.nextDir2; p.nextDir2 = { x: x, y: y }; }' },
+  { name: '#221 贪吃蛇 applyDir 每步只消费队列头一格（nextDir 生效后 nextDir2 顶上来；删掉顶替行则第二转向永远丢失）', file: 'js/snake-game.js', needle: 'if (q) { snake.nextDir = snake.nextDir2 || null; snake.nextDir2 = null; }' },
+  { name: '#221 贪吃蛇滑动轴锁可解锁（另一轴偏移反超 1.5× 改锁并转向：L 形拖动不抬手即可转向；改回 if (!lockAxis) 粘性锁则 L 形拖动失效）', file: 'js/snake-game.js', needle: 'if (ady >= TH && ady > adx * 1.5) { lockAxis = \'v\'; dir = dy > 0 ? \'d\' : \'u\'; }' },
+  { name: '#221 贪吃蛇方向键 pointerdown 即时转向（click 依赖 touchend 合成慢一拍且快速连点丢次；删掉 pointerdown 监听则回退 click 延迟）', file: 'js/snake-game.js', needle: "dpadEl.addEventListener('pointerdown', function (e) {" },
+  { name: '#221 贪吃蛇方向键/按钮触控消除点击延迟（touch-action:manipulation 屏蔽双击缩放等待；删掉则方向键响应回退 ~300ms）', file: 'css/chat-pages.css', needle: 'touch-action:manipulation; transition:transform .08s, background .08s; }' },
   // ===== v3.26.x #115：聊天输入栏「打字不显示/空白」（红米 K60 至尊版 + Edge）=====
   { name: '#115 聊天输入栏常驻独立合成层（will-change，层在键盘平移开始前就存在；#chat-input/#gc-input 是模板原生 contenteditable、不经 ceConvert，拿不到 .ce-box 那套保护）', file: 'css/base.css', needle: '.phone .chat-input { will-change:transform; }' },
   { name: '#115 聊天输入栏聚焦再叠 translateZ（与治好「文字与框分离」的 .ta-add .ce-box 同款；键盘期 .phone 被 _aPanComp 平移+逐帧改高时文本画在旧合成层＝框内空白）', file: 'css/base.css', needle: '.phone .chat-input:focus { transform: translateZ(0); }' },
@@ -666,6 +672,12 @@ const FIX_SENTINELS = [
   { name: '#132 漂流瓶字卡门控接 dcf-drift（删 poolLine 门控行即回归）', file: 'js/drift-bottle.js', needle: "window.dcfGet('drift')" },
   { name: '#132 音乐字卡门控接 dcf-music（删 taPauseSendCard 门控行即回归）', file: 'js/music-player.js', needle: "window.dcfGet('music')" },
   { name: '#132 功能字卡概率 stepper UI（fc 页 13 分类 + dk 页查岗，删 UI 即回归）', file: 'index.html', needle: 'dcf-prob-period-val' },
+  { name: '#219 背景模糊/遮罩层盖住壁纸（z-index 0→2——#147 壁纸常驻图层 z1 压住本层后白遮罩被盖+backdrop-filter 采样不含壁纸=调整无效，改回 0 即回归）', file: 'css/home.css', needle: 'position:absolute; inset:0; z-index:2; pointer-events:none;' },
+  { name: '#220 权威读库收尾·同窗原地补丁（条件不满足才整窗重渲——删补丁分支=每次打开聊天整窗重建 200 气泡重新解码肉眼跳动）', file: 'js/chat.js', needle: 'if (!inplacePatchIfSameWindow()) {' },
+  { name: '#220 重开聊天不闪·同窗判定（enterChat 重开跳过整窗重建——删此判定=重复进入聊天页必闪一下）', file: 'js/chat.js', needle: 'if (!inplacePatchIfSameWindow()) renderWindow(false, true);' },
+  { name: '#220 屏上渲染凭据登记（windowRenderedN/Prefix/Stale——整窗渲染时记录「屏上由哪份 msgs 渲染」，同窗补丁的判定基础，删登记则补丁永不命中=哑修复）', file: 'js/chat.js', needle: 'windowRenderedPrefix = window.activePrefix();' },
+  { name: '#220 增量追加对齐渲染凭据（addRec 后屏上窗口多出尾部消息，重开时才能命中同窗补丁——删此对齐=聊过天再重开必闪）', file: 'js/chat.js', needle: 'windowRenderedN = Number(el.dataset.idx) + 1;' },
+  { name: '#220 idle 回执占位标记（权威前读不到正文渲染占位+pendingRead 标记，权威到位原地替换——删标记则占位文本永久停留）', file: 'js/chat.js', needle: "m.dataset.pendingRead = '1';" },
 ];
 try {
   const built = CHECK_SENTINELS ? '' : readFileSync(join(root, 'index.html'), 'utf8');

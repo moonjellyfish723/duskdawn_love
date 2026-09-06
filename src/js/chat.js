@@ -645,11 +645,15 @@ function runDeferredNormalization() {
     try { writeLsSnapshot(msgs, myPre, true); } catch (e) {}
     }
     // #211：改动全部在渲染窗口之外时跳过整窗重建（防打开聊天闪一下）；屏上有改动才重渲
+    // #220：走「屏上重渲」或改动落在窗口内时，屏上窗口已不再是「与 msgs 一致的旧貌」，
+    // windowStale 置真——权威读库收尾的同窗补丁据此跳过（这里已重渲过，无需再补）。
     try {
     if (chatVisible() && msgs.length &&
     (sysNickChanged || removedAll > 0 || changedHi >= renderStart)) {
     renderWindow(false, true);
     scrollChatBottom();
+    } else if (changed && changedHi >= renderStart) {
+    windowStale = true;
     }
     } catch (e) {}
   };
@@ -853,8 +857,12 @@ try { if (window.idbSet) persistMsgsToIdb(myPrefix + ':chat-msgs', msgs); } catc
 try { writeLsSnapshot(msgs, myPrefix, true); } catch (e) {}
 __prof('ch7_end');
 if (chatVisible() && chatNearBottom()) {
+// v3.26.x #220：权威数据与屏上快照同窗同貌时原地补丁（不整窗重建=不闪）；
+// 条数不同（快照缺尾部）/渲染后台归一化改过窗口/非同桌面 → 照旧整窗重渲
+if (!inplacePatchIfSameWindow()) {
 renderWindow(false, true);
 scrollChatBottom();
+}
 }
 } else if (chatVisible() && msgs.length && !body.children.length) {
 // v3.26.x：冷加载（切桌面后 msgs=[]、无本地待合并，changed=false 原路径不会重渲）——
@@ -1071,8 +1079,11 @@ try {
 // FIX 2026-09-01 #120：大历史桌面跳过 restore 完成时的强读（进入聊天页才读），防低端机崩溃
 chatPrefetchIfLight(function () { loadMsgs(true); });
 if (chatVisible() && chatNearBottom() && body && msgs.length) {
+// v3.26.x #220：备份恢复后同窗同貌时原地补丁，不再整窗重建（防正在看聊天时跳动）
+if (!inplacePatchIfSameWindow()) {
 renderWindow(false, true);
 scrollChatBottom();
+}
 }
 fillAvatar('chat-user-av', 'cs-avatar-user');
 fillAvatar('chat-partner-av', 'cs-avatar-partner');
@@ -1833,6 +1844,13 @@ const TOP_THRESHOLD = 150;// scrollTop 小于此值触发向上加载（px）
 const JUMP_VIEW = 30;     // 搜索跳转时目标索引上方预留的余量
 let renderStart = 0;      // 渲染窗口起点（msgs 下标）；0 = 全量
 let renderEnd = 0;        // v3.10.x：渲染窗口终点（msgs 下标，开区间）；增量裁剪/恢复用
+// v3.26.x #220 聊天重开/权威读库收尾不闪：记录「屏上消息区由哪份 msgs 渲染」——
+// windowRenderedN=整窗渲染时的条数、windowRenderedPrefix=渲染时联系人命名空间、
+// windowStale=渲染后台归一化/尾巴合并改过 msgs（屏上已落后）。三者共同回答
+// 「DOM 是否仍与 msgs 一致」，一致则 enterChat 重开跳过整窗重建、权威到达走原地补丁。
+let windowRenderedN = 0;
+let windowRenderedPrefix = null;
+let windowStale = false;
 const TIME_DIVIDER_GAP = 5 * 60 * 1000;
 function maybeInsertDivider(idx) {
 if (store.get('cs-time-style') !== 'divider') return;
@@ -1857,6 +1875,11 @@ const prevHeight = keepScroll ? body.scrollHeight : 0;
 if (clampTop) renderStart = Math.max(0, len - RENDER_MAX);
 const start = Math.min(renderStart, len);
 renderEnd = len; // 整窗重建渲染到最新，窗口终点复位（裁剪状态随之清空）
+// v3.26.x #220：登记「屏上由哪份 msgs 渲染」——非整窗路径（增量追加/裁剪）不更新
+// N（条数没变，屏上仍是这份窗口），只有整窗渲染才重新登记。
+windowRenderedN = len;
+windowRenderedPrefix = window.activePrefix();
+windowStale = false;
 collectInplaceDrafts();
 body.innerHTML = '';
 batchRendering = true;
@@ -1887,6 +1910,50 @@ window.chatReRenderTime = function () {
 if (chatPage.hidden || !body.children.length) return;
 renderWindow(true, false);
 };
+// v3.26.x #220 聊天重开/权威读库收尾不闪：原地补丁——msgs 与屏上窗口「同窗同貌」
+// （归属同桌面、窗口尾贴到最新、渲染后归一化/尾巴合并没改过窗口内数据、DOM 里的
+// [data-idx] 恰为 renderStart..len-1 顺序排列）时，不再整窗重建（整窗=气泡全部重建
+// 重新解码=肉眼跳动），只做轻量收尾：已读回执占位（idle 分支读不到正文的专用标记）
+// 替换成真实内容。返回 true=已补丁无需重渲；false=不满足条件，调用方走原整窗渲染。
+// 注：窗口含 lite 快照残留（img==='' / voice==='' / _lsLite，大历史 LS 快照必然剥负载）
+// 时不跳过——权威数据在这些下标上是真实媒体，整窗重渲才算把图/语音补上（内容真变了）。
+function inplacePatchIfSameWindow() {
+const len = msgs.length;
+if (!len) return false;
+if (windowStale) return false;
+try { if (windowRenderedPrefix !== window.activePrefix()) return false; } catch (e) { return false; }
+if (windowRenderedN !== len) return false; // 窗口尾必须贴最新（渲染时 renderEnd=len）
+// 窗口内 lite 残留扫描（仅扫 renderStart..len-1，O(窗口)）——有残留必须整窗重渲升级
+for (let i = renderStart; i < len; i++) {
+const m = msgs[i];
+if (!m) continue;
+if (m._lsLite || m.img === '' || m.voice === '') return false;
+if (Array.isArray(m.parts) && m.parts.some(p => p && typeof p.v === 'string' && p.v === '')) return false;
+}
+// DOM [data-idx] 须恰为 renderStart..len-1 顺序排列（时间分隔线无 data-idx 不计；
+// 有裁剪/位移/脏节点即放弃，走整窗重建兜底）
+let n = renderStart;
+const pending = [];
+for (let k = 0; k < body.children.length; k++) {
+const el = body.children[k];
+if (!el.dataset || el.dataset.idx === undefined) continue;
+if (Number(el.dataset.idx) !== n) return false;
+if (el.dataset.pendingRead === '1') pending.push(el);
+n++;
+}
+if (n !== len) return false;
+for (let k = 0; k < pending.length; k++) {
+const el = pending[k];
+delete el.dataset.pendingRead;
+const rec = msgs[Number(el.dataset.idx)];
+const b = el.querySelector('.msg-bubble');
+if (rec && rec.special === 'read' && b && !rec.retracted &&
+b.textContent.indexOf('已读不回') >= 0) {
+b.innerHTML = '<span style="opacity:.5;font-size:12px">' + escTxt(rec.text || '已读不回') + '</span>';
+}
+}
+return true;
+}
 function loadOlderIncremental() {
 const len = msgs.length;
 if (renderStart <= 0 || renderStart >= len) return;
@@ -2342,7 +2409,11 @@ m.innerHTML = rec.side === 'out'
 const av = m.querySelector('.msg-av');
 const b = m.querySelector('.msg-bubble');
 if (rec.special === 'read') {
+// v3.26.x #220：idle 分支只有 {side,special}（读不到正文）——渲染成占位文本并打
+// pendingRead 标记，权威读库收尾的原地补丁（inplacePatchIfSameWindow）据此把
+// 「已读不回」替换成真实内容，替代旧的整窗重建路径
 b.innerHTML = '<span style="opacity:.5;font-size:12px">已读不回</span>';
+m.dataset.pendingRead = '1';
 } else if (rec.retracted) {
 // v3.16.x：撤回分支必须先于 sticker/image/voice/parts 类型分支——
 // 否则表情包/图片/语音被撤回后任何全量重渲染（renderWindow/loadMsgs/切会话）
@@ -2561,6 +2632,8 @@ pendingLocal = null;
 sessionChangedIdx.clear();
 chatDbReady = true;
 renderStart = 0; // v3.6.x：分页窗口起点复位（消息已清空）
+// v3.26.x #220：消息清空＝屏上窗口作废（#220 同窗补丁凭据一并复位，防误判同窗）
+windowRenderedN = 0; windowRenderedPrefix = null; windowStale = false;
 cancelPersist();
 // v3.26.x #90：用户主动清空＝合法归零，账本必须同步（否则缩水守卫会一直拒绝后续保存）
 try { chatLedger[window.activePrefix()] = 0; } catch (e) {}
@@ -2581,6 +2654,8 @@ pendingLocal = null;
 sessionChangedIdx.clear();
 chatDbReady = true;
 renderStart = 0;
+// v3.26.x #220：整包导入替换＝屏上窗口作废（同窗补丁凭据复位）
+windowRenderedN = 0; windowRenderedPrefix = null; windowStale = false;
 cancelPersist();
 chatTailClear(); // #180：整包导入替换＝旧日志作废
 try { if (window.idbSet) persistMsgsToIdb(window.activePrefix() + ':chat-msgs', msgs); } catch (e) {}
@@ -2846,6 +2921,16 @@ return body.lastElementChild;
 maybeInsertDivider(msgs.length - 1);
 const el = renderMsg(rec);
 if (renderEnd >= msgs.length - 1) renderEnd = msgs.length;
+// v3.26.x #220：增量追加后屏上窗口已比整窗登记多出尾部消息——把登记条数对齐到
+// 「新消息真实下标+1」（renderMsg 内按 msgs.length-1 落的 idx），让「聊过天→退出
+// →重开」（重开路径不走 addRec）也能命中同窗补丁。批量渲染期（appendTarget 挂在
+// frag 上、屏上尾节点还是旧消息）跳过——整窗渲染路径自带登记。
+try {
+if (!batchRendering && el) {
+windowRenderedN = Number(el.dataset.idx) + 1;
+windowStale = false;
+}
+} catch (e) {}
 return el;
 }
 function addIn(text, opts) {
@@ -3808,7 +3893,12 @@ if (window.applyChatSettings) window.applyChatSettings();
 clearChatUnread();
 loadMsgs();
 updateChatLoading(); // 记录未就绪时显示「正在加载聊天记录…」进度条
-renderWindow(false, true);
+// v3.26.x #220 聊天重开不闪：屏上消息区仍与当前 msgs 同窗同貌（同桌面、同条数、
+// 渲染后归一化没改过窗口内容、窗口未裁剪——顶部上翻裁剪后 renderStart>0 不满足）
+// 时，重复进入聊天页不再整窗重建 200 气泡（img 全部重新解码=肉眼跳动，小米15Pro
+// /Chrome 报障「消息先跳动一下才显示正常」，用户明说其他机型也有）。跳过时只把
+// 程序化滚底三连打满（与旧路径视觉结果一致）；不满足则照旧整窗渲染。
+if (!inplacePatchIfSameWindow()) renderWindow(false, true);
 scrollToBottom();
 if (window.requestAnimationFrame) {
 requestAnimationFrame(scrollToBottom);
