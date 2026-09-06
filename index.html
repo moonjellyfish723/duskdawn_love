@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788720710326">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.506</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 02:51<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788722899603">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.507</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 03:28<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.506</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.507</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.506</span>
+              <span class="lic-ver">v3.26.507</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -15202,12 +15202,13 @@ const envTop = sig.envTop || 0;
 const innerH = sig.innerH || 0;
 const screenH = sig.screenH || 0;
 const iosMajor = sig.iosMajor || 0;
+const safMajor = sig.safMajor || (function () { try { var m = /Version\/(\d+)\./.exec(String(navigator.userAgent || '')); return m ? +m[1] : 0; } catch (e) { return 0; } })();
 const standalone = !!sig.standalone;
 const diff = (screenH > 0 && innerH > 0) ? (screenH - innerH) : 0;
 const needEnvProbe = ((screenH > 0 && innerH > 0 && diff <= 2) || standalone);
 const coverBrowser = !standalone && diff <= 2 && envTop >= 20;
 const forceCover = standalone && !!sig.safeTopForce;
-const resStand = standalone && !forceCover && envTop >= 20 && envTop <= 160 && diff >= envTop - 8 && iosMajor >= 18;
+const resStand = standalone && !forceCover && envTop >= 20 && envTop <= 160 && diff >= envTop - 8 && iosMajor >= 18 && safMajor > 0 && safMajor < 26;
 const ipadForm = standalone && envTop >= 20 && diff <= 2 && screenH > 0 && innerH >= screenH - 2;
 let safeTop;
 if (forceCover) safeTop = (envTop >= 20) ? envTop : ((diff >= 20 && diff <= 160) ? diff : 0);
@@ -15439,6 +15440,7 @@ poolNames: (function () { var a = []; _poolNodes.forEach(function (n) { a.push(n
 tabBottom: _tabRR ? Math.round(_tabRR.bottom) : null };
 } catch (eC2) {}
 inp.iosMajor = (function () { try { var a = /OS (\d+)_/.exec(navigator.userAgent || ''); var b = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return Math.max(a ? +a[1] : 0, b ? +b[1] : 0); } catch (e) { return 0; } })();
+inp.safMajor = (function () { try { var m = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return m ? +m[1] : 0; } catch (e) { return 0; } })();
 inp.osLine = (function () { try { var m1 = /iPhone OS (\d+_\d+(?:_\d+)?) like/.exec(navigator.userAgent || ''); var m2 = /Version\/(\d+\.\d+)/.exec(navigator.userAgent || ''); return 'iOS ' + (m1 ? m1[1].replace(/_/g, '.') : '?') + ' / Safari ' + (m2 ? m2[1] : '?'); } catch (e) { return '未知'; } })();
 inp.force = (function () { try { return localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (e) { return false; } })();
 inp.ori = inp.orientation;
@@ -79927,6 +79929,7 @@ try {
 var _osM = /OS (\d+)_/.exec(navigator.userAgent || '');
 var _vM = /Version\/(\d+)\./.exec(navigator.userAgent || '');
 _sig0.iosMajor = Math.max(_osM ? +_osM[1] : 0, _vM ? +_vM[1] : 0);
+_sig0.safMajor = _vM ? +_vM[1] : 0; // #235：Safari 主版本（26.x 起覆盖形态，保留判定加门）
 } catch (e9) {}
 try { _sig0.safeTopForce = localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (eF0) {}
 var _f0 = window.mochiViewportForm(_sig0);
@@ -80583,4 +80586,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq64l9y -->
+<!-- __MOCHI_EOF__ mtq7fij7 -->

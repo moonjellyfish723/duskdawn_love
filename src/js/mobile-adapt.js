@@ -1018,6 +1018,7 @@
             var _osM = /OS (\d+)_/.exec(navigator.userAgent || '');
             var _vM = /Version\/(\d+)\./.exec(navigator.userAgent || '');
             _sig0.iosMajor = Math.max(_osM ? +_osM[1] : 0, _vM ? +_vM[1] : 0);
+            _sig0.safMajor = _vM ? +_vM[1] : 0; // #235：Safari 主版本（26.x 起覆盖形态，保留判定加门）
           } catch (e9) {}
           try { _sig0.safeTopForce = localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (eF0) {}
           var _f0 = window.mochiViewportForm(_sig0);

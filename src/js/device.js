@@ -1923,6 +1923,10 @@ window.mochiViewportForm = function (sig) {
   const innerH = sig.innerH || 0;
   const screenH = sig.screenH || 0;
   const iosMajor = sig.iosMajor || 0;
+  // #235：Safari 主版本（Version/x.y）——26.x 起独立应用状态栏行为变为「覆盖」
+  // （env 报真实值且内容垫到状态栏下），18.x 老内核才是「系统保留」。同信号反处理
+  // 的分水岭就是这个版本线（14Pro/26.6=覆盖实证、15Pro/18.3=保留实证）。
+  const safMajor = sig.safMajor || (function () { try { var m = /Version\/(\d+)\./.exec(String(navigator.userAgent || '')); return m ? +m[1] : 0; } catch (e) { return 0; } })();
   const standalone = !!sig.standalone;
   const diff = (screenH > 0 && innerH > 0) ? (screenH - innerH) : 0;
   // env 探针门槛：standalone 或疑似沉浸式壳（screen≈inner）才值得建探针 DOM
@@ -1933,7 +1937,9 @@ window.mochiViewportForm = function (sig) {
   // 声明优先级最高（执行器原语义：force 先判并置 _resStand=false——漏掉这步 forced
   // 设备会照保留形态算 expBase/expTop，正是 B 段台账抓出来的回归）
   const forceCover = standalone && !!sig.safeTopForce;
-  const resStand = standalone && !forceCover && envTop >= 20 && envTop <= 160 && diff >= envTop - 8 && iosMajor >= 18;
+  // #235：保留判定加 Safari<26 门——26.x 内核（16Pro/17Pro 等）同信号实为覆盖形态，
+  // 误判保留会漏加顶部避让（顶栏融进灵动岛）且高度少算 env 段（底部白带）
+  const resStand = standalone && !forceCover && envTop >= 20 && envTop <= 160 && diff >= envTop - 8 && iosMajor >= 18 && safMajor > 0 && safMajor < 26;
   // #184：iPad 形态（inner=屏高已含整屏，diff≈0，env 仍报状态栏高）
   const ipadForm = standalone && envTop >= 20 && diff <= 2 && screenH > 0 && innerH >= screenH - 2;
   let safeTop;
@@ -2237,6 +2243,7 @@ window.mochiViewportForm = function (sig) {
         tabBottom: _tabRR ? Math.round(_tabRR.bottom) : null };
     } catch (eC2) {}
     inp.iosMajor = (function () { try { var a = /OS (\d+)_/.exec(navigator.userAgent || ''); var b = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return Math.max(a ? +a[1] : 0, b ? +b[1] : 0); } catch (e) { return 0; } })();
+    inp.safMajor = (function () { try { var m = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return m ? +m[1] : 0; } catch (e) { return 0; } })();
     inp.osLine = (function () { try { var m1 = /iPhone OS (\d+_\d+(?:_\d+)?) like/.exec(navigator.userAgent || ''); var m2 = /Version\/(\d+\.\d+)/.exec(navigator.userAgent || ''); return 'iOS ' + (m1 ? m1[1].replace(/_/g, '.') : '?') + ' / Safari ' + (m2 ? m2[1] : '?'); } catch (e) { return '未知'; } })();
     // #209：用户「顶部避让修正」声明（#186：声明=覆盖形态）——此前漏传，判定器
     // force 分支在真实采集路径永不命中
