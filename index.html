@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788723489416">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.508</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 03:38<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788724069658">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.509</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 03:47<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.508</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.509</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.508</span>
+              <span class="lic-ver">v3.26.509</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -15206,7 +15206,7 @@ const safMajor = sig.safMajor || (function () { try { var m = /Version\/(\d+)\./
 const standalone = !!sig.standalone;
 const diff = (screenH > 0 && innerH > 0) ? (screenH - innerH) : 0;
 const needEnvProbe = ((screenH > 0 && innerH > 0 && diff <= 2) || standalone);
-const coverBrowser = !standalone && diff <= 2 && envTop >= 20;
+const coverBrowser = !standalone && envTop >= 20 && (diff <= 2 || !!sig.andr);
 const forceCover = standalone && !!sig.safeTopForce;
 const resStand = standalone && !forceCover && envTop >= 20 && envTop <= 160 && diff >= envTop - 8 && iosMajor >= 18 && safMajor > 0 && safMajor < 26;
 const ipadForm = standalone && envTop >= 20 && diff <= 2 && screenH > 0 && innerH >= screenH - 2;
@@ -15278,12 +15278,12 @@ add(inp.scale >= 0.95 || !inp.scale, '页面缩放 scale=' + (inp.scale || 1).to
 const envTop = inp.envTop || 0;
 const varTop = inp.varTop || 0;
 const diff = inp.diff || 0;
-const Fm = window.mochiViewportForm({ standalone: !!inp.standalone, envTop: envTop, innerH: inp.innerH || 0, screenH: inp.screenH || 0, iosMajor: inp.iosMajor || 0, safMajor: inp.safMajor || 0, safeTopForce: !!inp.force });
+const Fm = window.mochiViewportForm({ standalone: !!inp.standalone, envTop: envTop, innerH: inp.innerH || 0, screenH: inp.screenH || 0, iosMajor: inp.iosMajor || 0, safMajor: inp.safMajor || 0, andr: !!inp.andr, safeTopForce: !!inp.force });
 let mode;
 if (Fm.forceCover) mode = '覆盖形态（用户已在设置声明：顶部避让修正开启，#186）';
 else if (Fm.resStand) mode = '系统保留形态（iOS 18.x standalone：系统已把网页起点放在状态栏下方，env 仍报真实高度；页面不再避让、高度贴 inner，#200）';
 else if (Fm.ipadForm) mode = 'iPad 形态（inner=屏高已含整屏，diff=0：状态栏悬浮、页面 padding 避让，高度贴 inner/屏高，#184）';
-else if (envTop >= 20) mode = '覆盖形态（页面顶到屏幕最顶，系统栏悬浮其上）' + (Fm.coverBrowser ? '，浏览器沉浸壳（#199）' : '');
+else if (envTop >= 20) mode = '覆盖形态（页面顶到屏幕最顶，系统栏悬浮其上）' + (Fm.coverBrowser ? '，浏览器覆盖壳（#199/#236：状态栏自身抬升、.phone 贴 inner）' : '');
 else if (diff >= 20) mode = '已避让形态（系统已把网页起点放在状态栏下方，页面不应再加顶部 padding）';
 else mode = '无安全区/常规视口';
 add(true, '顶部形态判定：' + mode, 'env=' + envTop + 'px  var(--mochi-safe-top)=' + varTop + 'px  diff(screen−inner)=' + diff + 'px  判定器=' + Fm.form + '/safeTop=' + Fm.safeTop + '/期望底=' + Fm.expBase);
@@ -15291,9 +15291,10 @@ if (Fm.resStand && !Fm.forceCover) add(true, '歧义形态提示：若顶部 Moc
 if (inp.sbTop == null) add(true, '状态栏隐藏（聊天等全屏页），跳过顶位判定');
 if (inp.sbTop != null) {
 const expect = Fm.expTop;
-if (inp.sbTop > expect + 60) add(false, '顶部双倍避让', '✗ 状态栏实测顶位 ' + inp.sbTop + 'px，明显超过安全区顶部 ' + expect + 'px（#148 修复的双倍白带形态复发，连本条反馈）');
-else if (!Fm.resStand && envTop >= 20 && diff >= envTop - 8 && inp.sbTop < envTop - 5) add(false, '顶部重叠', '✗ 状态栏顶位 ' + inp.sbTop + 'px 钻进系统状态栏区（应 ≥ ' + envTop + 'px，#114 形态）');
-else add(true, '状态栏顶位 ' + inp.sbTop + 'px（安全区 ' + expect + 'px）');
+const sbEffTop = Fm.coverBrowser ? inp.sbTop + (parseFloat(inp.sbPadTop) || 0) : inp.sbTop;
+if (sbEffTop > expect + 60) add(false, '顶部双倍避让', '✗ 状态栏实测顶位 ' + sbEffTop + 'px，明显超过安全区顶部 ' + expect + 'px（#148 修复的双倍白带形态复发，连本条反馈）');
+else if (!Fm.resStand && envTop >= 20 && diff >= envTop - 8 && sbEffTop < envTop - 5) add(false, '顶部重叠', '✗ 状态栏顶位 ' + sbEffTop + 'px 钻进系统状态栏区（应 ≥ ' + envTop + 'px，#114 形态）');
+else add(true, '状态栏顶位 ' + sbEffTop + 'px（安全区 ' + expect + 'px）');
 }
 const expBase = Fm.expBase;
 if (inp.phoneBottom != null && inp.innerH) {
@@ -15301,7 +15302,7 @@ const expB = expBase;
 const under = Math.round(expB - inp.phoneBottom);
 const over = Math.round(inp.phoneBottom - expB);
 if (over > 2) add(false, '底部超出 ' + over + 'px', '✗ .phone 底边超出期望屏底（高度公式异常）');
-else if (under > 2) add(false, '底部少填 ' + under + 'px 白带', '✗ ' + (Fm.coverBrowser ? '浏览器覆盖形态（#199：避让由内容收缩承担，.phone 应铺到可视区底 ' + expB + 'px' : '覆盖形态（env-top=' + inp.envTop + '）下 .phone 应铺到 ' + expB + 'px（#179：高度须含顶部安全区 envTop+inner）') + '，实测只到 ' + inp.phoneBottom + 'px');
+else if (under > 2) add(false, '底部少填 ' + under + 'px 白带', '✗ ' + (Fm.coverBrowser ? '浏览器覆盖形态（#199/#236：避让由状态栏抬升与内容收缩承担，.phone 应铺到可视区底 ' + expB + 'px' : '覆盖形态（env-top=' + inp.envTop + '）下 .phone 应铺到 ' + expB + 'px（#179：高度须含顶部安全区 envTop+inner）') + '，实测只到 ' + inp.phoneBottom + 'px');
 else add(true, '底部贴合（.phone 底=' + Math.round(inp.phoneBottom) + ' / 期望 ' + expB + '）');
 }
 if (inp.fsActive) {
@@ -15507,7 +15508,7 @@ L.push('');
 L.push('== 自动判定 ==');
 F.forEach(f => L.push((f.ok ? '✓ ' : '✗ ') + f.name + (f.detail ? '\n    ' + f.detail : '')));
 let sigForm = '';
-try { sigForm = (window.mochiViewportForm({ standalone: !!inp.standalone, envTop: inp.envTop, innerH: inp.innerH, screenH: inp.screenH, iosMajor: inp.iosMajor, safMajor: inp.safMajor || 0, safeTopForce: !!inp.force }) || {}).form || ''; } catch (eS) {}
+try { sigForm = (window.mochiViewportForm({ standalone: !!inp.standalone, envTop: inp.envTop, innerH: inp.innerH, screenH: inp.screenH, iosMajor: inp.iosMajor, safMajor: inp.safMajor || 0, andr: !!inp.andr, safeTopForce: !!inp.force }) || {}).form || ''; } catch (eS) {}
 const sig = { v: sdVerCache, form: sigForm, scale: inp.scale, env: inp.envTop, varTop: inp.varTop, diff: inp.diff, innerW: inp.innerW, innerH: inp.innerH, vvH: inp.vvH, screenH: inp.screenH, phoneW: inp.phoneW, phoneH: inp.phoneH, phoneBottom: inp.phoneBottom, sb: inp.sbTop, tab: inp.tabBottom, iosH: inp.iosH, dpr: inp.dpr, standalone: !!inp.standalone, fs: !!inp.fsActive, andr: !!inp.andr, tablet: !!inp.tablet, ori: inp.orientation, bad: F.filter(function (f) { return !f.ok; }).map(function (f) { return f.name; }) };
 L.push('SIG ' + JSON.stringify(sig));
 L.push('');
@@ -80178,6 +80179,21 @@ var _aBurstUntil = 0;
 setInterval(function () {
 try {
 if (document.visibilityState !== 'visible') return;
+if (_aKb && !_aProv) {
+var _vN = Math.round(_aVV.height || 0);
+var _iN = window.innerHeight || 0;
+var _dK = _aH - _vN;
+var _kbFloor = Math.round(Math.min(_aIH || _aH, _aH || _aIH) * 0.22);
+if (_vN > 0 && _dK >= 13 && _dK < _kbFloor && _iN >= _aIH - 12
+&& Date.now() - _aKbAt > 1500 && Date.now() - _aVvChgAt > 1200) {
+_aKb = false; _aClosing = false; _aVvStale = true;
+_aPhone.style.height = '';
+_aPhone.style.alignSelf = '';
+_aPanComp();
+kbUndockPanels();
+}
+return;
+}
 if (_aKb || _aProv) return;
 if (!_aPhone.style.height && !_aPhone.style.alignSelf) return;
 var _hNow = Math.round(_aVV.height || 0);
@@ -80194,6 +80210,7 @@ return {
 kbActive: !!_aKb,
 prov: !!_aProv,
 closing: !!_aClosing,
+staleVv: !!_aVvStale, // #236：vv 残留读数闩在位（诊断现场用）
 docLocked: false,
 fullInner: Math.round(_aIH),
 fullVv: Math.round(_aH),
@@ -80263,7 +80280,7 @@ try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } cat
 if (offT2 && _aVV.scrollTo) { try { _aVV.scrollTo(0, 0); } catch (e4) {} }
 } catch (e) {}
 }
-function _aBump() { _aLastAct = Date.now(); }
+function _aBump() { _aLastAct = Date.now(); _aVvStale = false; } // #236：真实交互解除 vv 残留闩
 function _aIsText(el) {
 return el && ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
 ? (el.type !== 'checkbox' && el.type !== 'range' && el.type !== 'file' && el.type !== 'color' && !el.readOnly)
@@ -80272,13 +80289,15 @@ return el && ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
 function syncAndroidKb() {
 if (!_aVV || !_aPhone) return;
 var h = _aVV.height;
+if (h >= _aH - 60) _aVvStale = false;
+if (h !== _aPrevH) _aVvChgAt = Date.now();
 if (_aKb && h > _aPrevH && _aPrevH > 0) {
 _aClosing = true;
 }
 _aPrevH = h;
-var open = h < _aH - 60; // 可视高度明显变小 = 键盘弹出
+var open = (!_aVvStale && h < _aH - 60); // 可视高度明显变小 = 键盘弹出（#236：残留读数闩抑制纯 vv 信号；真键盘不受影响——inner 同缩走原判/交互与回基准解锁）
 if (!open && h > _aH) _aH = h; // 无键盘时更新基准，地址栏变化不误判
-if (open && !_aKb) { _aClosing = false; _aKb = true; _aPhone.style.alignSelf = 'flex-start'; kbDockPanels(); }
+if (open && !_aKb) { _aClosing = false; _aKb = true; _aKbAt = Date.now(); _aPhone.style.alignSelf = 'flex-start'; kbDockPanels(); }
 if (!open && _aKb) {
 if (h < _aH - 12) {
 _aClosing = true;
@@ -80408,7 +80427,7 @@ _aVV.addEventListener('resize', _aSchedCe);
 window.addEventListener('resize', _aSchedCe);
 document.addEventListener('focusin', function (e) {
 try {
-_aClosing = false; // v3.28.x：聚焦=弹键盘（或保持），退出收起态
+_aClosing = false; _aVvStale = false; // v3.28.x：聚焦=弹键盘（或保持），退出收起态；#236 解除 vv 残留闩
 if (_aIsText(e.target)) { _aTextFocused = e.target; _aFocusAt = Date.now(); _aBump(); }
 if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
 try { syncAndroidKb(); } catch (e3) {}
@@ -80462,6 +80481,37 @@ _aLastVVH = 0;
 }
 });
 }
+var _aCoverEnvCache = -1;
+function _aSyncCoverTop() {
+try {
+var _d = document.documentElement;
+var _ih = window.innerHeight || 0;
+var _sh = (window.screen && window.screen.height) || 0;
+if (!_ih || !_sh) return;
+if (_aCoverEnvCache < 0) {
+try {
+var _p = document.createElement('div');
+_p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);';
+document.body.appendChild(_p);
+_aCoverEnvCache = parseFloat(getComputedStyle(_p).paddingTop) || 0;
+document.body.removeChild(_p);
+} catch (e4) { _aCoverEnvCache = 0; }
+}
+var _fc = window.mochiViewportForm({ standalone: false, envTop: _aCoverEnvCache, innerH: _ih, screenH: _sh, iosMajor: 0, safMajor: 0, andr: true, safeTopForce: false });
+var _st = _fc.safeTop || 0;
+var _px = _st ? _st + 'px' : '';
+if (_d.style.getPropertyValue('--mochi-safe-top') !== _px) {
+if (_px) _d.style.setProperty('--mochi-safe-top', _px);
+else _d.style.removeProperty('--mochi-safe-top');
+}
+if (!!_st !== _d.classList.contains('mochi-cover-top')) _d.classList.toggle('mochi-cover-top', !!_st);
+} catch (e) {}
+}
+try { _aSyncCoverTop(); } catch (e) {}
+try {
+window.addEventListener('resize', _aSyncCoverTop);
+window.addEventListener('orientationchange', function () { _aCoverEnvCache = -1; _aSyncCoverTop(); });
+} catch (e) {}
 } catch (e) {}
 }
 const FLOAT_SELECTORS = ['#tc-mask', '#cc-export-mask', '#cc-scope-mask', '#call-mask', '#feed-notice-panel', '#feed-comment-panel', '#poke-card', '#emoji-panel', '#chat-ask-panel', '#qa-mask', '#chat-more-panel', '#gc-more-panel', '#chat-search', '#chat-decision-panel', '#chat-gdecision-panel', '#chat-divine-panel', '#chat-rps-panel', '#chat-call-panel', '#chat-pong-panel', '#chat-snake-panel', '#chat-brick-panel', '#chat-c4-panel', '#chat-ms-panel', '#chat-fish-panel', '#chat-memory-panel', '#chat-gift-panel', '#avlib-card', '#ck-panel', '#loc-panel', '.mg-mask', '#modal-mask', '#msg-actions', '#gc-msg-actions', '#desk-image-viewer', '.desk-lib', '#gc-members-panel', '#gc-at-panel', '#gc-settings-panel', '#img-view-mask', '#chat-rp-panel', '#batch-panel', '#eat-switch-overlay', '#voice-panel'];
@@ -80594,4 +80644,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq7s5mw -->
+<!-- __MOCHI_EOF__ mtq84lcq -->

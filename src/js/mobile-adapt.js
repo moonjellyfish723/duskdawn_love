@@ -1196,6 +1196,7 @@
                 var _osW = /OS (\d+)_/.exec(navigator.userAgent || '');
                 var _vW = /Version\/(\d+)\./.exec(navigator.userAgent || '');
                 _sigW.iosMajor = Math.max(_osW ? +_osW[1] : 0, _vW ? +_vW[1] : 0);
+                _sigW.safMajor = _vW ? +_vW[1] : 0; // #235：Safari 主版本同门（force 路径虽不走 resStand，信号保持同源）
               } catch (eW1) {}
               var _fw = window.mochiViewportForm(_sigW);
               if (_fw.forceCover) {
@@ -1396,6 +1397,11 @@
       if (_aVV && _aPhone) {
         var _aH = _aVV.height; // 无键盘基准（跟随地址栏显隐更新）
         var _aKb = false;
+        // FIX 2026-09-07 #236：键盘会话计时/vv 残留闩——HeyTapBrowser（OPPO K13 Turbo
+        // Pro 实报「屏幕下方大片空白」）收键盘后 vv.height 恒停在 inner−底栏高不回基准，
+        // open=h<_aH-60 恒真 → _aKb 卡真、.phone 内联高锁死残留值。_aKbAt=会话开启
+        // 时刻、_aVvChgAt=vv 最近变化时刻（避开收起动画）、_aVvStale=残留读数闩。
+        var _aKbAt = 0, _aVvChgAt = Date.now(), _aVvStale = false;
         // v3.10.x：当前聚焦的文本元素（focusin 可靠上报，部分安卓浏览器
         // activeElement 在 contenteditable 上返回 <body>，单看它会漏判聚焦）
         var _aTextFocused = null;
@@ -1437,6 +1443,31 @@
         setInterval(function () {
           try {
             if (document.visibilityState !== 'visible') return;
+            // FIX 2026-09-07 #236：键盘会话卡死自愈。该壳收键盘后 vv.height 恒停在
+            // 652=inner(720)−底栏(68)：open=h<_aH-60 恒真 → _aKb 卡真（含无聚焦被纯
+            // vv 读数置位的会话），.phone 内联高锁死 652=底部 108px 空白+tabbar 悬空；
+            // #209 清扫因 _aKb 真被跳过、focusout 400ms 复原因 652<_aH-60 不达——
+            // 四条复原路全被这一个残留读数堵死。真键盘证据=vv 缩幅≥键盘下限
+            //（min(_aIH,_aH)×22%，真键盘缩幅均 >200px，几十 px 的只可能是残留）或
+            // innerHeight 同缩（resizes-content）。都不成立而缩幅落在残留带（13~22%）+
+            // 会话已超 1.5s+vv 读数已稳 1.2s（收起动画每帧变化，凭此避开动画中途误清），
+            // 判 vv 为壳残留：清键盘态复原 + 置 _aVvStale 闩抑制纯 vv 再触发（vv 回
+            // 基准/触摸/聚焦时解除），防 652↔720 抖动把 .phone 来回抽。
+            if (_aKb && !_aProv) {
+              var _vN = Math.round(_aVV.height || 0);
+              var _iN = window.innerHeight || 0;
+              var _dK = _aH - _vN;
+              var _kbFloor = Math.round(Math.min(_aIH || _aH, _aH || _aIH) * 0.22);
+              if (_vN > 0 && _dK >= 13 && _dK < _kbFloor && _iN >= _aIH - 12
+                  && Date.now() - _aKbAt > 1500 && Date.now() - _aVvChgAt > 1200) {
+                _aKb = false; _aClosing = false; _aVvStale = true;
+                _aPhone.style.height = '';
+                _aPhone.style.alignSelf = '';
+                _aPanComp();
+                kbUndockPanels();
+              }
+              return;
+            }
             if (_aKb || _aProv) return;
             if (!_aPhone.style.height && !_aPhone.style.alignSelf) return;
             var _hNow = Math.round(_aVV.height || 0);
@@ -1458,6 +1489,7 @@
             kbActive: !!_aKb,
             prov: !!_aProv,
             closing: !!_aClosing,
+            staleVv: !!_aVvStale, // #236：vv 残留读数闩在位（诊断现场用）
             docLocked: false,
             fullInner: Math.round(_aIH),
             fullVv: Math.round(_aH),
@@ -1562,7 +1594,7 @@
             if (offT2 && _aVV.scrollTo) { try { _aVV.scrollTo(0, 0); } catch (e4) {} }
           } catch (e) {}
         }
-        function _aBump() { _aLastAct = Date.now(); }
+        function _aBump() { _aLastAct = Date.now(); _aVvStale = false; } // #236：真实交互解除 vv 残留闩
         function _aIsText(el) {
           return el && ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
             ? (el.type !== 'checkbox' && el.type !== 'range' && el.type !== 'file' && el.type !== 'color' && !el.readOnly)
@@ -1571,6 +1603,10 @@
         function syncAndroidKb() {
           if (!_aVV || !_aPhone) return;
           var h = _aVV.height;
+          // FIX 2026-09-07 #236：vv 回基准=读数健康，解除残留闩；高度变化刷新稳定
+          // 时刻（收起动画每帧都变，1s 看门狗凭「vv 已稳 1.2s」避开动画中途误清）
+          if (h >= _aH - 60) _aVvStale = false;
+          if (h !== _aPrevH) _aVvChgAt = Date.now();
           // v3.29.x（#141）：高度【上升】且键盘开着=收起动画进行中——不依赖 focusout
           //（安卓返回键/手势收键盘焦点保留，focusout 不触发，#89 的 _aClosing 闸门挂
           // 不上；此前每帧 resize 仍跑 _aPinPan/nudgeInputVisible 的强制布局读取，
@@ -1583,9 +1619,9 @@
             _aClosing = true;
           }
           _aPrevH = h;
-          var open = h < _aH - 60; // 可视高度明显变小 = 键盘弹出
+          var open = (!_aVvStale && h < _aH - 60); // 可视高度明显变小 = 键盘弹出（#236：残留读数闩抑制纯 vv 信号；真键盘不受影响——inner 同缩走原判/交互与回基准解锁）
           if (!open && h > _aH) _aH = h; // 无键盘时更新基准，地址栏变化不误判
-          if (open && !_aKb) { _aClosing = false; _aKb = true; _aPhone.style.alignSelf = 'flex-start'; kbDockPanels(); }
+          if (open && !_aKb) { _aClosing = false; _aKb = true; _aKbAt = Date.now(); _aPhone.style.alignSelf = 'flex-start'; kbDockPanels(); }
           if (!open && _aKb) {
             // v3.27.x：键盘收起——动画期 visualViewport 还没回到无键盘基准（_aH）时，
             // 不要提前把 .phone 撑回全高 + 面板摘停靠。否则键盘收起动画中途就恢复：
@@ -1786,7 +1822,7 @@
         // 首次聚焦兜底：键盘弹出的 resize 偶发前置/漏触发，紧跟一次判定
         document.addEventListener('focusin', function (e) {
           try {
-            _aClosing = false; // v3.28.x：聚焦=弹键盘（或保持），退出收起态
+            _aClosing = false; _aVvStale = false; // v3.28.x：聚焦=弹键盘（或保持），退出收起态；#236 解除 vv 残留闩
             if (_aIsText(e.target)) { _aTextFocused = e.target; _aFocusAt = Date.now(); _aBump(); }
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
               try { syncAndroidKb(); } catch (e3) {}
@@ -1854,6 +1890,49 @@
           }
         });
       }
+      // ===== FIX 2026-09-07 #236：安卓「浏览器覆盖形态」执行器 =====
+      // 此前 covered 形态的执行侧（写 --mochi-safe-top / 挂 mochi-cover-top）整体在
+      // isIOS 分支（syncVvFit），安卓永远没人执行：HeyTapBrowser（OPPO K13 Turbo Pro
+      // 实报）等安卓壳 viewport-fit=cover 生效、页面画进系统状态栏下方
+      //（env(safe-area-inset-top)=40），base.css 后加载的 .statusbar{padding:4px} 压死
+      // @media 的 env() 避让（#114 同根因安卓版）→ 桌面状态栏顶位 0 钻进系统状态栏区。
+      // 判定器 mochiViewportForm 早已支持（#199 coverBrowser + #236 安扩展 sig.andr），
+      // 这里补执行侧：env 探针（按横竖屏缓存，旋转失效）→ 共享判定器 → safeTop>0 写
+      // 变量+挂类（base.css html.mochi-cover-top .phone .statusbar 抬升状态栏），否则
+      // 摘除。常规安卓浏览器 env=0 → safeTop=0 → 摘除属性，与旧版行为一致；其余消费方
+      //（chat-head 等）fallback 本就是 env()，写入同值=零视觉变化。高度侧刻意不动：
+      // 浏览器形态布局视口=inner，.phone 贴 inner 不造文档滚动量（#199 同款语义）。
+      var _aCoverEnvCache = -1;
+      function _aSyncCoverTop() {
+        try {
+          var _d = document.documentElement;
+          var _ih = window.innerHeight || 0;
+          var _sh = (window.screen && window.screen.height) || 0;
+          if (!_ih || !_sh) return;
+          if (_aCoverEnvCache < 0) {
+            try {
+              var _p = document.createElement('div');
+              _p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);';
+              document.body.appendChild(_p);
+              _aCoverEnvCache = parseFloat(getComputedStyle(_p).paddingTop) || 0;
+              document.body.removeChild(_p);
+            } catch (e4) { _aCoverEnvCache = 0; }
+          }
+          var _fc = window.mochiViewportForm({ standalone: false, envTop: _aCoverEnvCache, innerH: _ih, screenH: _sh, iosMajor: 0, safMajor: 0, andr: true, safeTopForce: false });
+          var _st = _fc.safeTop || 0;
+          var _px = _st ? _st + 'px' : '';
+          if (_d.style.getPropertyValue('--mochi-safe-top') !== _px) {
+            if (_px) _d.style.setProperty('--mochi-safe-top', _px);
+            else _d.style.removeProperty('--mochi-safe-top');
+          }
+          if (!!_st !== _d.classList.contains('mochi-cover-top')) _d.classList.toggle('mochi-cover-top', !!_st);
+        } catch (e) {}
+      }
+      try { _aSyncCoverTop(); } catch (e) {}
+      try {
+        window.addEventListener('resize', _aSyncCoverTop);
+        window.addEventListener('orientationchange', function () { _aCoverEnvCache = -1; _aSyncCoverTop(); });
+      } catch (e) {}
     } catch (e) {}
   }
 

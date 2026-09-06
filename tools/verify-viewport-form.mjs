@@ -32,27 +32,32 @@ console.log('[A] 真机信号台账');
 const cases = [
   {
     n: 'iPhone 15 Pro · iOS 18.3 · Safari 主屏幕（#200 实测 inner793/screen852/env59）',
-    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18 },
+    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18, safMajor: 18 },
     want: { form: 'reserved', safeTop: 0, px: '0px', expBase: 793, expTop: 12 }
   },
   {
+    n: 'iPhone · iOS 26 · Safari 26.x standalone 同信号（#235：26.x 起独立模式状态栏变「覆盖」，resStand 加 safMajor<26 门——删门误判保留=顶栏融进灵动岛+底部白带）',
+    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 26, safMajor: 26 },
+    want: { form: 'covered', safeTop: 59, px: '59px', expBase: 852, expTop: 59 }
+  },
+  {
     n: 'iPhone 16 Pro · iOS 26.1 · standalone 已避让形态（#148 实测 inner812/screen874/env0）',
-    sig: { standalone: true, envTop: 0, innerH: 812, screenH: 874, iosMajor: 26 },
+    sig: { standalone: true, envTop: 0, innerH: 812, screenH: 874, iosMajor: 26, safMajor: 26 },
     want: { form: 'avoided', safeTop: 0, px: '', expBase: 812, expTop: 12 }
   },
   {
     n: 'iPhone 15 Pro · iOS 18.3 老内核 · force 声明（#186 实测 env0/diff59：safeTop=diff 兜底补满 852）',
-    sig: { standalone: true, envTop: 0, innerH: 793, screenH: 852, iosMajor: 18, safeTopForce: true },
+    sig: { standalone: true, envTop: 0, innerH: 793, screenH: 852, iosMajor: 18, safMajor: 18, safeTopForce: true },
     want: { form: 'force-cover', safeTop: 59, px: '59px', expBase: 852, expTop: 12 }
   },
   {
     n: 'iPhone 14 Pro · iOS 26.6 · 覆盖形态 + force 声明（#185：信号与保留形态相同需相反处理）',
-    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 26, safeTopForce: true },
+    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 26, safMajor: 26, safeTopForce: true },
     want: { form: 'force-cover', safeTop: 59, px: '59px', expBase: 852, expTop: 59 }
   },
   {
     n: 'iPad Air · standalone（#184 实测 inner1180/screen1180/env32：状态栏悬浮、高度贴 inner）',
-    sig: { standalone: true, envTop: 32, innerH: 1180, screenH: 1180, iosMajor: 26 },
+    sig: { standalone: true, envTop: 32, innerH: 1180, screenH: 1180, iosMajor: 26, safMajor: 26 },
     want: { form: 'ipad', safeTop: 32, px: '32px', expBase: 1180, expTop: 32 }
   },
   {
@@ -61,8 +66,23 @@ const cases = [
     want: { form: 'cover-browser', safeTop: 35, px: '35px', expBase: 980, expTop: 35 }
   },
   {
+    n: 'OPPO K13 Turbo Pro · HeyTapBrowser 浏览器覆盖壳（#236 实测 env40/inner720/screen788/diff68：页面画进系统状态栏下方+底部还有工具条——扩展前判 covered/safeTop0/期望760=顶部重叠+少填40 双误报，安卓执行器也不生效）',
+    sig: { standalone: false, envTop: 40, innerH: 720, screenH: 788, iosMajor: 0, safMajor: 0, andr: true },
+    want: { form: 'cover-browser', safeTop: 40, px: '40px', expBase: 720, expTop: 40 }
+  },
+  {
+    n: 'iOS 浏览器非沉浸（sig.andr 不传）——#236 扩展零回归闸：维持 #199 原判式 safeTop0/期望=envTop+inner（coverBrowser 不因环境是浏览器而误扩到 iOS）',
+    sig: { standalone: false, envTop: 40, innerH: 720, screenH: 788, iosMajor: 0 },
+    want: { form: 'covered', safeTop: 0, px: '', expBase: 760, expTop: 40 }
+  },
+  {
+    n: '常规安卓浏览器 env=0 已避让（页面被系统垫在状态栏下方）——#236 扩展不误伤：safeTop0 与旧版一致',
+    sig: { standalone: false, envTop: 0, innerH: 720, screenH: 788, iosMajor: 0, andr: true },
+    want: { form: 'avoided', safeTop: 0, px: '', expBase: 720, expTop: 12 }
+  },
+  {
     n: 'iOS 17.x 覆盖形态 standalone（#179 设备：inner=screen−env 但 iOS<18 门槛不判保留，防回归）',
-    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 17 },
+    sig: { standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 17, safMajor: 17 },
     want: { form: 'covered', safeTop: 59, px: '59px', expBase: 852, expTop: 59 }
   },
   {
@@ -72,7 +92,7 @@ const cases = [
   },
   {
     n: '保留形态信号但 env 超上限 160（异常值不认，回落实测链）',
-    sig: { standalone: true, envTop: 200, innerH: 793, screenH: 993, iosMajor: 18 },
+    sig: { standalone: true, envTop: 200, innerH: 793, screenH: 993, iosMajor: 18, safMajor: 18 },
     want: { form: 'covered', safeTop: 0, px: '', expBase: 993, expTop: 200 }
   },
 ];
@@ -85,8 +105,8 @@ for (const c of cases) {
 }
 // force 开关矩阵（#185 设备信号相同需相反处理；#186 env=0 diff 兜底）四场景
 {
-  const f1 = mochiViewportForm({ standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18 });
-  const f2 = mochiViewportForm({ standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18, safeTopForce: true });
+  const f1 = mochiViewportForm({ standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18, safMajor: 18 });
+  const f2 = mochiViewportForm({ standalone: true, envTop: 59, innerH: 793, screenH: 852, iosMajor: 18, safMajor: 18, safeTopForce: true });
   ok(f1.resStand === true && f1.safeTop === 0 && f1.expBase === 793, '同信号无 force → 保留形态贴 inner（15 Pro/18.3）');
   ok(f2.resStand === false && f2.safeTop === 59 && f2.expBase === 852, '同信号有 force → 覆盖处理补满屏（14 Pro/26.6 声明）');
   ok(f1.expTop === 12 && f2.expTop === 59, 'force 下期望顶位=max(env,12)（修 #186 期 sbTop expect=12 顶部双倍误报）');
@@ -137,6 +157,36 @@ console.log('[C] 全屏页外留白提示');
     // 非全屏全绿 → 不出提示
     F = run({ ...fsGreen, fsActive: false, sbTop: 12, tabBottom: 860 });
     ok(!F.some(f => f.name.indexOf('※ 全屏态·页外留白提示') === 0), '非全屏 → 不出提示');
+  }
+}
+
+// ===== D. #236 安卓浏览器覆盖壳·诊断判定端到端（③顶部重叠/④底部少填/⑤b 悬空/⑤e 残留） =====
+console.log('[D] #236 安卓浏览器覆盖壳·诊断判定');
+{
+  const jm = device.match(/function screenDiagJudge\(inp\) \{[\s\S]*?\n  \}/);
+  ok(!!jm, 'screenDiagJudge 可提取');
+  if (jm) {
+    const clf = new Function(`'use strict';${cm[0].replace('window.mochiViewportForm = ', 'return ')}`)();
+    let body = jm[0]
+      .replace(/^function screenDiagJudge\(inp\) \{/, '')
+      .replace(/\n  \}$/, '');
+    const run = (inp) => Function('inp', 'window', `'use strict'; ${body}`)(inp, { mochiViewportForm: clf });
+    // HeyTap 修复后稳态：mochi-cover-top 已挂（状态栏 padding 54）+ .phone 贴 inner=720 → 判定全绿
+    const fixed = { scale: 1, envTop: 40, varTop: 54, diff: 68, standalone: false, innerH: 720, screenH: 788,
+      sbTop: 0, sbPadTop: '54px', phoneBottom: 720, tabBottom: 702, envBottom: 0, andr: true,
+      iosMajor: 0, safMajor: 0, vvH: 720, fsActive: false, kb: null, kbAnd: null,
+      phoneInlineH: '', phoneAlignSelf: '', htmlClass: 'mochi-cover-top', phoneW: 360, innerW: 360, isMobileDev: true };
+    let F = run({ ...fixed });
+    ok(!F.some(f => !f.ok), '修复后稳态全绿（顶部重叠/少填/悬空 全消）' + (F.some(f => !f.ok) ? '——首个红项: ' + F.find(f => !f.ok).name : ''));
+    // 报障现场（修复前执行器不生效+键盘 vv 残留锁死 652）：三 ✗ 精确对号=报障原文
+    const broken = { ...fixed, varTop: 0, sbPadTop: '4px', phoneBottom: 652, tabBottom: 634, vvH: 652,
+      phoneInlineH: '652px', phoneAlignSelf: 'flex-start', htmlClass: '', kbAnd: { kbActive: true, prov: false } };
+    F = run({ ...broken });
+    ok(F.some(f => !f.ok && f.name === '顶部重叠'), '报障现场：顶部重叠（sbEffTop=0+4 < 35，#114 形态）');
+    ok(F.some(f => !f.ok && f.name.indexOf('底部少填') === 0), '报障现场：底部少填（.phone 卡 652 vs 期望 inner 720）');
+    ok(F.some(f => !f.ok && f.name.indexOf('底部导航栏悬空') === 0), '报障现场：底部导航栏悬空（634 vs 期望 720）');
+    // ⑤e 不误报：键盘探针活动期（含本批 vv 残留锁死态）内联 height 属合法停靠，不出「停靠残留」
+    ok(!F.some(f => f.name.indexOf('.phone 停靠残留') === 0), '键盘会话期内联高不判停靠残留（kbActive 门控）');
   }
 }
 
