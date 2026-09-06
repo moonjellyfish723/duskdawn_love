@@ -1,3 +1,9 @@
+### 2026-09-06 03:3x（#216 屏幕适配诊断聊天页键盘期专项采集；已构建）
+* [AI-B 域]（**改动文件：src/js/device.js（collectScreenDiag 聊天块新增键盘期采集：键盘高度=基线 inner−vv、键盘期输入栏底边；报告聊天页节键盘打开时输出专项行）、build.mjs（FIX_SENTINELS 1 条）、FIX-REGRESSION.md（#216 行）**）。
+* 定位链收官：键盘期瞬态（「聊天界面上移/输入栏被盖」发生现场）从盲区变为可采。
+* 验证：node --check 过；--check-sentinels 508 全绿；CDP 实测无键盘不误输出。
+* 待真机：聊天页键盘打开时跑诊断，报告出现键盘期行。
+
 ### 2026-09-07 02:1x（#235 形态判定补 Safari 版本门：26.x 覆盖形态 vs 18.x 保留形态分水岭；已构建）
 * [AI-B 域]（**改动文件：src/js/device.js（mochiViewportForm 解析 safMajor + resStand 加 safMajor<26 门）、src/js/mobile-adapt.js（_sig0 透传 safMajor）、FIX-REGRESSION.md（#235 行）、build.mjs（#209 needle 同步）**）。
 * 根因矩阵：Safari 26.x（14Pro/16Pro 实测）=覆盖形态（env 报真实值+内容垫到状态栏下）；Safari 18.3（15Pro 实测）=保留形态（env 报真实值+系统垫走）。同信号反处理，唯版本线可分。

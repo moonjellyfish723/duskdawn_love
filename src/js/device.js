@@ -2030,7 +2030,7 @@ window.mochiViewportForm = function (sig) {
     const envTop = inp.envTop || 0;
     const varTop = inp.varTop || 0;
     const diff = inp.diff || 0;
-    const Fm = window.mochiViewportForm({ standalone: !!inp.standalone, envTop: envTop, innerH: inp.innerH || 0, screenH: inp.screenH || 0, iosMajor: inp.iosMajor || 0, safeTopForce: !!inp.force });
+    const Fm = window.mochiViewportForm({ standalone: !!inp.standalone, envTop: envTop, innerH: inp.innerH || 0, screenH: inp.screenH || 0, iosMajor: inp.iosMajor || 0, safMajor: inp.safMajor || 0, safeTopForce: !!inp.force });
     let mode;
     if (Fm.forceCover) mode = '覆盖形态（用户已在设置声明：顶部避让修正开启，#186）';
     else if (Fm.resStand) mode = '系统保留形态（iOS 18.x standalone：系统已把网页起点放在状态栏下方，env 仍报真实高度；页面不再避让、高度贴 inner，#200）';
@@ -2229,6 +2229,13 @@ window.mochiViewportForm = function (sig) {
         bodySH: _cBody ? _cBody.scrollHeight : 0, bodyCH: _cBody ? _cBody.clientHeight : 0,
         inputBottom: _cRowR ? Math.round(_cRowR.bottom) : null,
         inputW: _cRowR ? Math.round(_cRowR.width) : 0 };
+      // #216：键盘期专项——键盘高度(基线−vv)与输入栏底边，是「聊天界面上移/输入栏
+      // 被盖」的直接定位数据；键盘收起时 kbActive=false 不采集
+      var _kbSt = null;
+      try { _kbSt = window.__mochiIosKb ? window.__mochiIosKb() : null; } catch (eK0) {}
+      inp.chat.kbActive = !!( _kbSt && _kbSt.kbActive);
+      inp.chat.kbH = _kbSt && _kbSt.kbActive ? Math.max(0, (_kbSt.fullInner || window.innerHeight || 0) - (inp.vvH || 0)) : 0;
+      inp.chat.inputBottomKb = (_cRowR && inp.chat.kbActive) ? Math.round(_cRowR.bottom) : null;
     } catch (eC1) {}
     try {
       var _pool = document.getElementById('desk-widget-pool');
@@ -2248,6 +2255,7 @@ window.mochiViewportForm = function (sig) {
     // #209：用户「顶部避让修正」声明（#186：声明=覆盖形态）——此前漏传，判定器
     // force 分支在真实采集路径永不命中
     inp.force = (function () { try { return localStorage.getItem('xy-home-v2:__safe-top-force') === '1'; } catch (e) { return false; } })();
+
     // #215：历史对比键别名（快照存 ori/fs，采集器字段是 orientation/fsActive）
     inp.ori = inp.orientation;
     inp.fs = inp.fsActive;
@@ -2292,7 +2300,8 @@ window.mochiViewportForm = function (sig) {
       L.push('== 聊天页 ==');
       L.push('可见=' + (c.visible ? '是' : '否（当前不在聊天页，下列为容器实测）') + '  消息节点=' + c.msgs + '  内容高/可视=' + c.bodySH + '/' + c.bodyCH);
       L.push('输入栏：底边=' + (c.inputBottom != null ? c.inputBottom + 'px' : 'n/a') + ' / 宽=' + c.inputW + 'px（可视底 ' + inp.innerH + 'px）');
-      if (c.visible && c.inputBottom != null && !inp.kb) {
+      if (c.kbActive) L.push('键盘期：键盘高度≈' + c.kbH + 'px  输入栏底边=' + (c.inputBottomKb != null ? c.inputBottomKb + 'px' : '?') + '（应 ≤ 键盘上沿）');
+      if (c.visible && c.inputBottom != null && !c.kbActive) {
         const gapB = inp.innerH - c.inputBottom;
         if (gapB > 4) L.push('⚠ 聊天输入栏未贴底：底边距可视区底 ' + gapB + 'px（键盘已收；反复出现请整段反馈）');
         else if (gapB < -4) L.push('⚠ 聊天输入栏超出可视区 ' + (-gapB) + 'px');
@@ -2312,7 +2321,7 @@ window.mochiViewportForm = function (sig) {
     // v3.27.x：机读签名行——用户整段复制，开发者可脚本解析对号/录 verify 台账；
     // 键序固定勿动（下游脚本按名取值）
     let sigForm = '';
-    try { sigForm = (window.mochiViewportForm({ standalone: !!inp.standalone, envTop: inp.envTop, innerH: inp.innerH, screenH: inp.screenH, iosMajor: inp.iosMajor, safeTopForce: !!inp.force }) || {}).form || ''; } catch (eS) {}
+    try { sigForm = (window.mochiViewportForm({ standalone: !!inp.standalone, envTop: inp.envTop, innerH: inp.innerH, screenH: inp.screenH, iosMajor: inp.iosMajor, safMajor: inp.safMajor || 0, safeTopForce: !!inp.force }) || {}).form || ''; } catch (eS) {}
     const sig = { v: sdVerCache, form: sigForm, scale: inp.scale, env: inp.envTop, varTop: inp.varTop, diff: inp.diff, innerW: inp.innerW, innerH: inp.innerH, vvH: inp.vvH, screenH: inp.screenH, phoneW: inp.phoneW, phoneH: inp.phoneH, phoneBottom: inp.phoneBottom, sb: inp.sbTop, tab: inp.tabBottom, iosH: inp.iosH, dpr: inp.dpr, standalone: !!inp.standalone, fs: !!inp.fsActive, andr: !!inp.andr, tablet: !!inp.tablet, ori: inp.orientation, bad: F.filter(function (f) { return !f.ok; }).map(function (f) { return f.name; }) };
     L.push('SIG ' + JSON.stringify(sig));
     L.push('');
