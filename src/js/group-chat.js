@@ -135,6 +135,8 @@
     'out-bg': '#111111', 'out-ink': '#ffffff', 'in-bg': '#ffffff', 'in-ink': '#111111',
     'send-bg': '#111111', 'send-ink': '#ffffff', 'send-show': 'show',
     'font-size': '14px', 'bubble-size': '11px 14px',
+    // v3.28.x：对齐聊天美化——气泡边缘圆角 / 时间轴颜色 / 正在输入颜色
+    'bubble-radius': '18px', 'time-ink': '#111111', 'typing-ink': '#8a8a8a',
     'av-shape': 'circle', 'time-style': 'under-av',
     'bg': '', 'font': '', 'css': '',
     // v3.16.x：成员群聊昵称显示开关（on = 成员消息头像上方显示昵称，默认不显示）
@@ -159,6 +161,14 @@
     { label: '标准', value: '11px 14px' },
     { label: '宽松', value: '14px 18px' }
   ];
+  // v3.28.x：聊天气泡边缘（四角圆角大小）——与聊天美化对齐
+  const GC_BUBBLE_RADII = [
+    { label: '小圆角', value: '6px' },
+    { label: '标准', value: '12px' },
+    { label: '大圆角', value: '18px' },
+    { label: '特圆', value: '28px' }
+  ];
+  const GC_BUBBLE_RADIUS_DEFAULT = '18px';
   // 色板与聊天设置一致（气泡底色 / 文字色 / 发送按钮底）
   const GC_BUBBLE_BG = [
     { color: '#111111', label: '默认黑' }, { color: '#ffffff', label: '白色' }, { color: '#3a3a3a', label: '炭灰' },
@@ -178,7 +188,7 @@
   const gcBeautyStored = {};
   // v3.11.x：深色模式下未自定义配色键的默认值（浅色默认白气泡/黑字在内联变量上
   // 压过 dark.css 覆盖，是深色模式群聊白块+黑字的根源）；用户自定义过仍优先
-  const GC_DARK_DEFAULTS = { 'out-bg': '#3a3a3a', 'in-bg': '#2a2a2a', 'in-ink': '#f0f0f0', 'send-bg': '#f0f0f0', 'send-ink': '#111111' };
+  const GC_DARK_DEFAULTS = { 'out-bg': '#3a3a3a', 'in-bg': '#2a2a2a', 'in-ink': '#f0f0f0', 'send-bg': '#f0f0f0', 'send-ink': '#111111', 'time-ink': '#8a8a8a' };
   function gcBeautyStore() { return gcProfileStore(); }
   function gcBeautyLoad() {
     try {
@@ -293,6 +303,10 @@
     page.style.setProperty('--msg-out-ink', g('out-ink'));
     page.style.setProperty('--chat-font-size', g('font-size'));
     page.style.setProperty('--chat-bubble-pad', g('bubble-size'));
+    // v3.28.x：对齐聊天美化——气泡边缘圆角 / 时间轴颜色 / 正在输入颜色
+    page.style.setProperty('--chat-bubble-radius', g('bubble-radius'));
+    page.style.setProperty('--msg-time-ink', g('time-ink'));
+    page.style.setProperty('--typing-ink', g('typing-ink'));
     page.style.setProperty('--send-bg', g('send-bg'));
     page.style.setProperty('--send-ink', g('send-ink'));
     page.style.setProperty('--msg-av-radius', g('av-shape') === 'square' ? '10px' : '50%');
@@ -1464,6 +1478,44 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
   }
   function renderMainSettingsView() {
     const esc = escapeHtml;
+    // v3.28.x：群聊回复 stepper（读/写 reply-settings.js 的 gc-* 全局键，生效于全部联系人）
+    // 复用全站 .stepper/.stp-* 样式与交互语义（与回复设置页一致），作用于群聊设置面板内
+    const gcStepperRow = (label, k, min, max, step) => {
+      const gcfg = (window.groupChatCfg ? window.groupChatCfg() : {}) || {};
+      const row = document.createElement('div');
+      row.className = 'gc-set-stepper';
+      row.innerHTML =
+        '<span class="txt">' + escapeHtml(label) + '</span>' +
+        '<div class="stepper" data-k="' + k + '" data-min="' + min + '" data-max="' + (Number.isFinite(max) ? max : '') + '" data-step="' + step + '">' +
+          '<button class="stp-min">−</button>' +
+          '<input class="stp-val" inputmode="decimal" value="' + (gcfg[k] !== undefined ? gcfg[k] : (min || 0)) + '">' +
+          '<button class="stp-max">+</button>' +
+        '</div>';
+      const st = row.querySelector('.stepper');
+      const val = st.querySelector('.stp-val');
+      const mn = Number.isFinite(min) ? min : 0;
+      const mx = Number.isFinite(max) ? max : Infinity;
+      const sp = Number(step) || 1;
+      const fmt = (v) => sp < 1 ? Number(v).toFixed(2) : String(Math.round(Number(v)));
+      const save = (v) => { try { if (window.saveReplyCfg) window.saveReplyCfg(k, v); } catch (e) {} };
+      const bump = (dir) => {
+        let v = parseFloat(val.value); if (!isFinite(v)) v = mn;
+        v = dir > 0 ? Math.min(mx, v + sp) : Math.max(mn, v - sp);
+        val.value = fmt(v); save(val.value);
+      };
+      st.querySelector('.stp-min').addEventListener('click', () => bump(-1));
+      st.querySelector('.stp-max').addEventListener('click', () => bump(1));
+      val.addEventListener('change', () => {
+        let v = parseFloat(val.value); if (!isFinite(v)) v = mn;
+        v = Math.max(mn, Math.min(mx, v));
+        v = sp < 1 ? Math.round(v / sp) * sp : Math.round(v);
+        val.value = fmt(v); save(val.value);
+      });
+      val.addEventListener('blur', () => {
+        const v = parseFloat(val.value); if (!isFinite(v)) { val.value = fmt(mn); save(val.value); }
+      });
+      return row;
+    };
     const item = (key, curName, curAv, deskName) => {
       const row = document.createElement('div');
       row.className = 'gc-set-item';
@@ -1522,6 +1574,18 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
       ], 'off');
     });
     settingsBody.appendChild(nmRow);
+    // —— 群聊回复（v3.28.x：全局生效于全部联系人，与回复设置页） ——
+    const tR = document.createElement('div');
+    tR.className = 'gc-set-title';
+    tR.textContent = '群聊回复';
+    settingsBody.appendChild(tR);
+    settingsBody.appendChild(gcStepperRow('每个联系人回复概率 %', 'gc-prob', 0, 100, 5));
+    settingsBody.appendChild(gcStepperRow('回复速度最短（秒）', 'gc-rs-min', 1, 60, 1));
+    settingsBody.appendChild(gcStepperRow('回复速度最长（秒）', 'gc-rs-max', 2, Infinity, 1));
+    const rNote = document.createElement('div');
+    rNote.className = 'gc-set-note';
+    rNote.textContent = '这里的回复概率与速度对所有群聊成员统一生效（全局）；完整的每项概率/条数/开关在「设置 → 回复设置 → 群聊被动回复」里调整。';
+    settingsBody.appendChild(rNote);
     // —— 美化聊天入口（v3.9.x） ——
     const bRow = document.createElement('div');
     bRow.className = 'gc-set-item gc-set-link';
@@ -1636,6 +1700,26 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
       gcBeautySet('bubble-size', v);
       document.getElementById('tc-mask').hidden = true;
       toast('气泡框大小已应用');
+    });
+  }
+  // v3.28.x：聊天气泡边缘（四角圆角大小）——滑块自由调节 + 预设胶囊，实时预览（对齐聊天美化）
+  function pickGcBubbleRadius() {
+    if (!window.openModal) return;
+    const page = document.getElementById('page-group-chat');
+    const curStr = gcBeautyGet('bubble-radius') || GC_BUBBLE_RADIUS_DEFAULT;
+    const curNum = (parseInt(curStr, 10) || 0);
+    window.openModal('聊天气泡边缘圆角', '', (v) => {
+      const px = typeof v === 'number' ? v : (parseInt(v, 10) || 0);
+      gcBeautySet('bubble-radius', px + 'px');
+    }, {
+      noInput: true,
+      slider: {
+        min: 0, max: 40, step: 1, value: Math.max(0, Math.min(40, curNum)),
+        label: '拖动调整气泡圆角', unit: 'px', preview: true,
+        onChange: (val) => { if (page) page.style.setProperty('--chat-bubble-radius', val + 'px'); }
+      },
+      pills: GC_BUBBLE_RADII,
+      pill: curStr
     });
   }
   // 群聊字体（上传 / 名字，作用域仅群聊页）
@@ -1754,10 +1838,337 @@ if (defs && defs.type === 'text' && defs.text) t = defs.text;
       { label: '圆形', value: 'circle' }, { label: '方形', value: 'square' }
     ], 'circle'));
     add('时间轴样式', (GC_BEAUTY_STYLES.find(s => s.value === g('time-style')) || {}).label || '头像下方', () => pickGcPills('time-style', '时间轴样式', GC_BEAUTY_STYLES, 'under-av'));
+    // v3.28.x：对齐聊天美化——气泡边缘圆角 / 时间轴颜色 / 正在输入颜色
+    add('气泡边缘圆角', (GC_BUBBLE_RADII.find(p => p.value === g('bubble-radius')) || {}).label || (g('bubble-radius') === '0px' ? '方形' : g('bubble-radius')), () => pickGcBubbleRadius());
+    add('时间轴颜色', '默认 ' + g('time-ink'), () => pickGcColor('time-ink', '时间轴颜色', GC_INK_COLORS));
+    add('正在输入颜色', '默认 ' + g('typing-ink'), () => pickGcColor('typing-ink', '正在输入颜色', GC_INK_COLORS));
     // —— 字体与样式 ——
     gtitle('字体与样式');
     add('群聊字体', g('font') ? (g('font').indexOf('data:') === 0 ? '已上传' : g('font')) : '默认', () => pickGcFont());
     add('气泡 CSS', g('css') ? '已设置' : '默认', () => pickGcCss());
+    // —— 美化方案（v3.28.x：对齐聊天美化的保存/应用/导出/导入） ——
+    gtitle('美化方案');
+    add('保存当前为美化方案', '', () => window.saveGcBeautyScheme());
+    add('美化方案管理', '(保存/应用/改名/删除/导出/导入)', () => window.openGcBeautySchemes());
+  }
+
+  // ================= 群聊美化方案（v3.28.x：保存/应用/改名/删除/导出/导入） =================
+  // 与聊天美化方案同语义，键为 gc-beauty 的各子键，存储于全局命名空间（所有桌面通用）
+  const GC_SCHEMES_KEY = 'gc-beauty-schemes';
+  const GC_BEAUTY_KEYS = [
+    'bg', 'css', 'font', 'font-size', 'bubble-size', 'bubble-radius',
+    'av-shape', 'time-style', 'time-ink', 'typing-ink',
+    'out-bg', 'out-ink', 'in-bg', 'in-ink', 'send-bg', 'send-ink', 'send-show'
+  ];
+  const gcSchemesStore = () => { try { return gcProfileStore(); } catch (e) { return null; } };
+  const getGcSchemes = () => {
+    try { const s = gcSchemesStore(); const a = JSON.parse((s && s.get(GC_SCHEMES_KEY)) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  };
+  const saveGcSchemesList = (arr) => { try { const s = gcSchemesStore(); if (s) s.set(GC_SCHEMES_KEY, JSON.stringify(arr)); } catch (e) {} };
+  const collectGcBeauty = () => {
+    const data = {};
+    GC_BEAUTY_KEYS.forEach(k => { const v = gcBeautyGet(k); if (v !== '' && v !== null && v !== undefined) data[k] = v; });
+    return data;
+  };
+  const applyGcBeautyData = (data) => {
+    GC_BEAUTY_KEYS.forEach(k => { if (data[k] !== undefined) try { gcBeautySet(k, data[k]); } catch (e) {} });
+  };
+  window.collectGcBeauty = collectGcBeauty;
+  window.applyGcBeautyData = applyGcBeautyData;
+  function gcSchemeModalEl() {
+    let m = document.getElementById('gc-beauty-scheme-manager');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'gc-beauty-scheme-manager'; m.hidden = true;
+      m.style.cssText = 'position:fixed;inset:0;z-index:89;align-items:center;justify-content:center;background:rgba(0,0,0,.4)';
+      document.body.appendChild(m);
+      m.addEventListener('click', (e) => { if (e.target === m) { m.style.display = 'none'; m.hidden = true; } });
+    }
+    return m;
+  }
+  function hideGcSchemeModal(m) { if (m) { m.style.display = 'none'; m.hidden = true; } }
+  function applyGcScheme(idx, m) {
+    const s = getGcSchemes()[idx];
+    if (!s || !window.openModal) return;
+    const ctl = window.openModal('应用方案「' + s.name + '」？', '', (v) => {
+      if (v !== 'ok') return;
+      applyGcBeautyData(s.data || {});
+      hideGcSchemeModal(m);
+      toast('已应用「' + s.name + '」，群聊立即生效');
+    }, { noInput: true, staticText: '将覆盖全部联系人桌面的群聊美化设置，立即生效', pills: [{ label: '应用', value: 'ok' }] });
+    if (ctl && ctl.pills) ctl.pills([{ label: '应用', value: 'ok' }], 'ok');
+  }
+  function deleteGcScheme(idx, m) {
+    const s = getGcSchemes()[idx];
+    if (!s || !window.openModal) return;
+    const ctl = window.openModal('删除方案「' + s.name + '」？', '', (v) => {
+      if (v !== 'ok') return;
+      const list = getGcSchemes();
+      list.splice(idx, 1);
+      saveGcSchemesList(list);
+      toast('已删除方案');
+      window.openGcBeautySchemes();
+    }, { noInput: true, staticText: '删除后不可恢复', pills: [{ label: '删除', value: 'ok' }] });
+    if (ctl && ctl.pills) ctl.pills([{ label: '删除', value: 'ok' }], 'ok');
+  }
+  const gcMkBtn = (label, css, fn) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = css;
+    b.addEventListener('click', fn);
+    return b;
+  };
+  // 方案缩略图（与聊天美化同款迷你气泡预览）
+  function gcSchemeThumb(data) {
+    data = data || {};
+    const inBg = data['in-bg'] || '#ffffff';
+    const inInk = data['in-ink'] || '#111111';
+    const outBg = data['out-bg'] || '#111111';
+    const outInk = data['out-ink'] || '#ffffff';
+    const r = (parseInt(data['bubble-radius'] || '18px', 10) || 18) / 2;
+    const tl = Math.max(0, Math.min(9, Math.round(r)));
+    const bg = data['bg'] || '';
+    const hasCss = !!data['css'];
+    const wall = bg
+      ? '<div style="position:absolute;inset:0;background-image:url(&quot;' + bg + '&quot;);background-size:cover;background-position:center;opacity:.4"></div>'
+      : '';
+    const cssChip = hasCss
+      ? '<div style="position:absolute;left:5px;bottom:4px;font-size:9px;color:#fff;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:5px">CSS</div>'
+      : '';
+    return '' +
+      '<div style="position:relative;width:100%;height:64px;border-radius:9px;overflow:hidden;background:#e6e9ee;display:flex;align-items:center;padding:8px 10px;box-sizing:border-box;gap:5px">' +
+      wall +
+      '<div style="position:relative;align-self:flex-end;padding:4px 8px;border-radius:' + tl + 'px;font-size:10px;line-height:1.2;color:' + inInk + ';background:' + inBg + ';box-shadow:0 1px 2px rgba(0,0,0,.08);max-width:56%">对方</div>' +
+      '<div style="margin-left:auto;position:relative;align-self:flex-start;padding:4px 8px;border-radius:' + tl + 'px;font-size:10px;line-height:1.2;color:' + outInk + ';background:' + outBg + ';box-shadow:0 1px 2px rgba(0,0,0,.08);max-width:56%">我的</div>' +
+      cssChip +
+      '</div>';
+  }
+  function gcBeautySummary(data) {
+    data = data || {};
+    const out = [];
+    const inBg = data['in-bg'], outBg = data['out-bg'];
+    if (inBg || outBg) out.push('气泡色 ' + (inBg || '默认') + ' / ' + (outBg || '默认'));
+    const rad = data['bubble-radius'] || '18px';
+    const rn = GC_BUBBLE_RADII.find(p => p.value === rad);
+    out.push('圆角 ' + (rn ? rn.label : rad));
+    const fs = data['font-size'] || '14px';
+    const fnl = GC_FONT_SIZES.find(p => p.value === fs);
+    out.push('字号 ' + (fnl ? fnl.label : fs));
+    if (data['css']) out.push('自定义CSS');
+    if (data['bg']) out.push('壁纸');
+    const av = data['av-shape'];
+    if (av) out.push('头像 ' + (av === 'square' ? '方形' : '圆形'));
+    return out;
+  }
+  function gcSaveModalEl() {
+    let m = document.getElementById('gc-beauty-save-modal');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'gc-beauty-save-modal'; m.hidden = true;
+      m.style.cssText = 'position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;background:rgba(0,0,0,.4);display:none';
+      document.body.appendChild(m);
+      m.addEventListener('click', (e) => { if (e.target === m) { m.style.display = 'none'; m.hidden = true; } });
+    }
+    return m;
+  }
+  window.saveGcBeautyScheme = function () {
+    const x = gcSaveModalEl();
+    x.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'box-sizing:border-box;width:min(84vw,340px);max-height:84vh;overflow-y:auto;background:var(--card-bg,#fff);color:var(--ink,#111);border-radius:16px;padding:16px;box-shadow:0 14px 40px rgba(0,0,0,.25)';
+    const hd = document.createElement('div');
+    hd.style.cssText = 'font-size:15px;font-weight:700;text-align:center;margin-bottom:12px';
+    hd.textContent = '保存当前为群聊美化方案';
+    const data = collectGcBeauty();
+    const pv = document.createElement('div');
+    pv.innerHTML = gcSchemeThumb(data);
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:10.5px;color:var(--muted,#999);margin:8px 0 6px';
+    sub.textContent = '正在保存的当前设置：';
+    const sum = document.createElement('div');
+    sum.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px';
+    const chips = gcBeautySummary(data);
+    if (!chips.length) { const e = document.createElement('span'); e.textContent = '以上传壁纸/气泡等设置为主'; e.style.cssText = 'font-size:10.5px;color:var(--muted,#999)'; sum.appendChild(e); }
+    else chips.forEach(c => { const el = document.createElement('span'); el.textContent = c; el.style.cssText = 'font-size:10.5px;color:var(--muted,#666);background:var(--card-soft,#f2f3f5);border:1px solid var(--card-border,#eee);padding:2px 8px;border-radius:999px'; sum.appendChild(el); });
+    const inp = document.createElement('input');
+    inp.placeholder = '例如：简约白、情侣粉气泡…'; inp.maxLength = 20;
+    inp.style.cssText = 'width:100%;box-sizing:border-box;padding:9px 11px;font-size:13px;border:1px solid var(--card-border,#ddd);border-radius:9px;background:var(--bg-b,#fff);color:var(--ink,#111)';
+    const act = document.createElement('div');
+    act.style.cssText = 'display:flex;gap:8px;margin-top:13px;justify-content:flex-end';
+    const cancel = gcMkBtn('取消', 'font-size:12.5px;padding:7px 14px;border:1px solid var(--card-border,#eee);border-radius:9px;background:var(--btn-cancel-bg,#fafafa);color:var(--btn-cancel-ink,#555)', () => { x.style.display = 'none'; x.hidden = true; });
+    const ok = gcMkBtn('保存方案', 'font-size:12.5px;padding:7px 14px;border:none;border-radius:9px;background:var(--ink,#111);color:#fff', () => {
+      const name = (inp.value || '').trim();
+      if (!name) { inp.style.borderColor = '#e05a5a'; return; }
+      const list = getGcSchemes();
+      list.push({ name, time: Date.now(), data });
+      saveGcSchemesList(list);
+      x.style.display = 'none'; x.hidden = true;
+      toast('已保存方案「' + name + '」，所有桌面通用');
+      const m = document.getElementById('gc-beauty-scheme-manager');
+      if (m && !m.hidden) window.openGcBeautySchemes();
+    });
+    act.appendChild(cancel); act.appendChild(ok);
+    wrap.appendChild(hd); wrap.appendChild(pv); wrap.appendChild(sub); wrap.appendChild(sum); wrap.appendChild(inp); wrap.appendChild(act);
+    x.appendChild(wrap);
+    x.style.display = 'flex'; x.hidden = false;
+    setTimeout(() => { try { inp.focus(); } catch (e) {} }, 60);
+  };
+  // 群聊方案预览——暂存当前群聊美化 → 应用所选方案（即时生效，可还原）
+  let gcPreviewBackup = null;
+  function gcPreviewBarEl() {
+    let bar = document.getElementById('gc-beauty-preview-bar');
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'gc-beauty-preview-bar';
+      bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:96;margin:12px;padding:12px 14px;background:var(--card-bg,#fff);color:var(--ink,#111);border:1px solid var(--card-border,#eee);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;align-items:center;gap:10px';
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+  function gcStartPreview(s, m) {
+    if (!s) return;
+    gcPreviewBackup = collectGcBeauty();
+    hideGcSchemeModal(m);
+    applyGcBeautyData(s.data || {});
+    const bar = gcPreviewBarEl();
+    bar.innerHTML = '';
+    const tx = document.createElement('div'); tx.style.flex = '1'; tx.style.fontSize = '13px';
+    tx.innerHTML = '正在预览「<b>' + s.name + '</b>」<div style="font-size:11px;color:var(--muted,#999)">去群聊页查看效果，点「使用」保存 / 「还原」恢复</div>';
+    const re = gcMkBtn('还原', 'font-size:12px;padding:6px 12px;border:1px solid var(--card-border,#eee);border-radius:8px;background:var(--btn-cancel-bg,#fafafa);color:var(--btn-cancel-ink,#555)', () => {
+      if (gcPreviewBackup) applyGcBeautyData(gcPreviewBackup);
+      gcPreviewBackup = null; bar.style.display = 'none'; toast('已还原');
+    });
+    const keep = gcMkBtn('使用这个方案', 'font-size:12px;padding:6px 12px;border:none;border-radius:8px;background:var(--ink,#111);color:var(--bg-b,#fff)', () => {
+      gcPreviewBackup = null; bar.style.display = 'none'; toast('已应用「' + s.name + '」');
+    });
+    bar.appendChild(tx); bar.appendChild(re); bar.appendChild(keep);
+    bar.style.display = 'flex';
+  }
+  function renameGcScheme(idx, m) {
+    const list = getGcSchemes();
+    const s = list[idx];
+    if (!s || !window.openModal) return;
+    const ctl = window.openModal('编辑方案名称', s.name, (name) => {
+      name = (name || '').trim();
+      if (!name) { ctl.hint('名称不能为空'); ctl.stay(); return; }
+      s.name = name; saveGcSchemesList(list); toast('已重命名');
+      window.openGcBeautySchemes();
+    }, { maxlength: 20, placeholder: '输入方案名称' });
+  }
+  function gcSchemeExport() {
+    const schemes = getGcSchemes();
+    const doExport = (data) => {
+      const json = JSON.stringify(data);
+      if (!window.openModal) { toast('导出失败'); return; }
+      const d = new Date(); const p2 = (n) => (n < 10 ? '0' : '') + n;
+      const fname = 'mochi群聊美化方案-' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '.json';
+      window.openModal('导出群聊美化方案', '', (v) => {
+        if (v === 'file') {
+          if (window.mochiExportFile) { window.mochiExportFile(json, fname, 'mochi群聊美化方案'); return; }
+          try {
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fname;
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e) {} }, 1000);
+            toast('已导出群聊美化方案文件');
+          } catch (e) { toast('导出文件失败'); }
+        } else if (v === 'text') {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(json).then(() => toast('已复制到剪贴板，发给对方粘贴导入')).catch(() => toast('复制失败，请改用导出文件'));
+          } else { toast('剪贴板不可用，请改用导出文件'); }
+        }
+      }, {
+        noInput: true,
+        staticText: '选择导出方式：\n· 导出文件：自动弹分享/保存框（iPhone 主屏安装时用这个），不支持时确认后下载\n· 复制文字：复制配置文本，发给对方粘贴导入',
+        pills: [
+          { label: '导出文件', value: 'file' },
+          { label: '复制文字', value: 'text' },
+        ],
+      });
+    };
+    if (!schemes.length || !window.openModal) { doExport(collectGcBeauty()); return; }
+    const pills = [{ label: '当前设置', value: 'current' }]
+      .concat(schemes.map((s, i) => ({ label: s.name || ('方案' + (i + 1)), value: 'sch_' + i })));
+    window.openModal('导出群聊美化方案', '', (v) => {
+      let data;
+      if (v && v.indexOf('sch_') === 0) {
+        const i = parseInt(String(v).slice(4), 10);
+        const s = getGcSchemes()[i];
+        if (!s) { toast('未找到该方案'); return; }
+        data = s.data || {};
+      } else {
+        data = collectGcBeauty();
+      }
+      doExport(data);
+    }, { noInput: true, staticText: '选择要导出的群聊美化方案：\n· 当前设置：导出当前正在使用的群聊美化\n· 已保存方案：导出对应方案（含气泡/壁纸/字体）', pills: pills });
+  }
+  function gcSchemeImport() {
+    if (!window.openModal) return;
+    window.openModal('导入群聊美化方案', '', (v) => {
+      if (!v || !v.trim()) return;
+      try {
+        const data = JSON.parse(v.trim());
+        if (typeof data !== 'object' || Array.isArray(data)) { toast('格式错误'); return; }
+        applyGcBeautyData(data);
+        toast('已导入，群聊立即生效');
+        window.openGcBeautySchemes();
+      } catch (e) { toast('解析失败，请检查文本'); }
+    }, { textarea: true, textareaPlaceholder: '粘贴对方导出的群聊美化方案文本，或点下方「从文件导入」选择 .json 文件', txtImport: true });
+  }
+  window.openGcBeautySchemes = function () {
+    const m = gcSchemeModalEl();
+    m.innerHTML = '';
+    const box = document.createElement('div');
+    box.style.cssText = 'width:min(92vw,420px);max-height:80vh;display:flex;flex-direction:column;background:var(--card-bg,#fff);color:var(--ink,#111);border-radius:16px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.2)';
+    const head = document.createElement('div');
+    head.innerHTML = '<div style="font-size:16px;font-weight:600;margin-bottom:4px">群聊美化方案</div><div style="font-size:12px;color:var(--muted,#888);margin-bottom:12px">方案在所有联系人桌面通用（含气泡颜色/CSS、背景图、字体、圆角、时间轴等），点「应用」一键切换群聊外观</div>';
+    box.appendChild(head);
+    const list = document.createElement('div');
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:12px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1;min-height:0';
+    const schemes = getGcSchemes();
+    if (!schemes.length) {
+      const empty = document.createElement('div');
+      empty.innerHTML = '<div style="font-size:13px;color:var(--muted,#999);text-align:center;padding:20px 0">还没有保存的群聊美化方案<br>先点下方「保存当前为方案」</div>';
+      list.appendChild(empty);
+    }
+    schemes.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--card-border,#eee);border-radius:10px';
+      const th = document.createElement('div');
+      th.innerHTML = gcSchemeThumb(s.data || {});
+      row.appendChild(th);
+      const nm = document.createElement('div');
+      const t = new Date(s.time || Date.now());
+      const ds = (t.getMonth() + 1) + '-' + t.getDate();
+      nm.innerHTML = '<div style="font-size:14px;font-weight:600;word-break:break-all">' + s.name + '</div><div style="font-size:11px;color:var(--muted,#999)">保存于 ' + ds + '</div>';
+      row.appendChild(nm);
+      const btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;align-items:center;gap:7px;flex-wrap:wrap';
+      btns.appendChild(gcMkBtn('预览', 'font-size:12px;padding:4px 10px;border:1px solid var(--card-border,#ddd);border-radius:8px;background:var(--btn-cancel-bg,#fafafa);color:var(--ink,#111)', () => gcStartPreview(s, m)));
+      btns.appendChild(gcMkBtn('应用', 'font-size:12px;padding:4px 10px;border:none;border-radius:8px;background:var(--ink,#111);color:var(--bg-b,#fff)', () => applyGcScheme(i, m)));
+      btns.appendChild(gcMkBtn('改名', 'font-size:12px;padding:4px 10px;border:1px solid var(--card-border,#ddd);border-radius:8px;background:var(--btn-cancel-bg,#fafafa);color:var(--ink,#111)', () => renameGcScheme(i, m)));
+      btns.appendChild(gcMkBtn('删除', 'font-size:12px;padding:4px 10px;border:1px solid rgba(163,45,45,.35);border-radius:8px;background:var(--danger-soft,#fff5f5);color:var(--danger-ink,#a32d2d)', () => deleteGcScheme(i, m)));
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    const opera = document.createElement('div');
+    opera.style.cssText = 'display:flex;gap:8px;margin-bottom:8px';
+    const exBtn = gcMkBtn('导出方案', 'flex:1;padding:10px;border:1px solid var(--card-border,#ddd);border-radius:10px;background:var(--btn-cancel-bg,#fafafa);color:var(--ink,#111);font-size:13px;font-weight:600', () => gcSchemeExport());
+    const imBtn = gcMkBtn('导入方案', 'flex:1;padding:10px;border:1px solid var(--card-border,#ddd);border-radius:10px;background:var(--btn-cancel-bg,#fafafa);color:var(--ink,#111);font-size:13px;font-weight:600', () => gcSchemeImport());
+    opera.appendChild(exBtn); opera.appendChild(imBtn);
+    box.appendChild(opera);
+    const save = document.createElement('button');
+    save.textContent = '+ 保存当前为方案';
+    save.style.cssText = 'width:100%;padding:12px;border:none;border-radius:10px;background:var(--ink,#111);color:var(--bg-b,#fff);font-size:14px;font-weight:600';
+    save.addEventListener('click', () => { window.saveGcBeautyScheme(); });
+    box.appendChild(save);
+    const close = document.createElement('button');
+    close.textContent = '关闭';
+    close.style.cssText = 'width:100%;margin-top:8px;padding:10px;border:1px solid var(--card-border,#eee);border-radius:10px;background:var(--btn-cancel-bg,#fafafa);color:var(--btn-cancel-ink,#555)';
+    close.addEventListener('click', () => hideGcSchemeModal(m));
+    box.appendChild(close);
+    m.appendChild(box);
+    m.style.display = 'flex'; m.hidden = false;
   }
   if (settingsClose) settingsClose.addEventListener('click', () => { if (settingsPanel) settingsPanel.hidden = true; });
   if (settingsPanel) settingsPanel.addEventListener('click', (e) => { if (e.target === settingsPanel) settingsPanel.hidden = true; });

@@ -184,9 +184,6 @@ await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: c
 for (let i = 1; i <= 5; i++) { await cdp('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx - arm + (2 * arm) * i / 5, y: cy, id: 1 }] }); await sleep(20); }
 for (let i = 1; i <= 5; i++) { await cdp('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + arm, y: cy - (arm * 1.8) * i / 5, id: 1 }] }); await sleep(20); }
 await cdp('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-const tmCount = await evalJs('({ tm: window.__tmCount, ts: window.__tsCount })');
-console.log('touch counters:', JSON.stringify(tmCount));
-console.log('touch payload:', JSON.stringify(await evalJs('window.__tsInfo')));
 await sleep(150);
 const postL = await pstate();
 // 上滑段 dy 总量 1.8×arm 远超 TH=12，且 ady 最终 > adx*1.5 → 应解锁 v 轴转 up（除非已死/已变向）
@@ -195,32 +192,32 @@ check('C: L 形拖动不抬手可转向（dir.y=-1）',
   'pre=' + JSON.stringify(preL) + ' post=' + JSON.stringify(postL));
 
 // ---- D. 方向键 pointerdown 即时转向（不派 click）----
-// 当前 dir=up(若 C 过)。pointerdown 左键应转 left（合法转向）。
-await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: 0, y: 0, button: 'left', clickCount: 0 }); // 占位无副作用
+// 全屏 CSS 隐藏方向键（.snake-fs .snake-dpad{display:none}，滑动已覆盖输入的设计）→
+// 先切回非全屏（再点一次全屏按钮），dpad 显示后用页面内 PointerEvent(touch) 验证：
+// pointerdown 单独到达（无 click）即入队转向。
+await evalJs(`document.getElementById('snake-fs').click(); true;`);
+await sleep(600);
 const dpBtn = await evalJs(`(function(){
   const b = document.querySelector('.snake-dp[data-dir="left"]');
   const r = b.getBoundingClientRect();
-  return { x: r.x + r.width / 2, y: r.y + r.height / 2, visible: r.width > 0 && r.height > 0 };
+  const d = getComputedStyle(b.closest('.snake-dpad')).display;
+  return { visible: r.width > 0 && r.height > 0 && d !== 'none', dpadDisplay: d };
 })()`);
 let dpRes = null;
 if (dpBtn && dpBtn.visible) {
-  // 用 CDP 原生 touch 点按方向键（产生 pointerdown(touch) + click），但断言目标是：
-  // pointerdown 单独到达时已转向。改为页面内直接派发 PointerEvent（touch 类型）不带 click：
   dpRes = await evalJs(`(function(){
     const b = document.querySelector('.snake-dp[data-dir="left"]');
-    const before = JSON.stringify((window.__snakeState ? window.__snakeState().player.dir : null));
+    const before = JSON.stringify(window.__snakeState().player);
     const ev = new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', isPrimary: true, clientX: 1, clientY: 1 });
     b.dispatchEvent(ev);
-    const after = JSON.stringify((window.__snakeState ? window.__snakeState().player.dir : null));
-    return { before: before, after: after };
+    return { before: before, after: JSON.stringify(window.__snakeState().player) };
   })()`);
-  await sleep(50);
-  const afterTick = await pstate();
-  check('D: 方向键 pointerdown(touch) 即时入队（dir 链收到 left）',
-    dpRes && dpRes.after && dpRes.after.indexOf('-1') >= 0 && afterTick && (afterTick.dir.x === -1 || afterTick.nextDir && afterTick.nextDir.x === -1 || afterTick.nextDir2 && afterTick.nextDir2.x === -1),
-    'before=' + (dpRes && dpRes.before) + ' after=' + (dpRes && dpRes.after) + ' tick=' + JSON.stringify(afterTick));
+  const st = JSON.parse(dpRes.after);
+  check('D: 方向键 pointerdown(touch) 即时入队（nextDir/nextDir2 收到 left）',
+    st.nextDir && st.nextDir.x === -1 || st.nextDir2 && st.nextDir2.x === -1,
+    'before=' + dpRes.before + ' after=' + dpRes.after);
 } else {
-  check('D: 方向键 pointerdown 即时转向', false, 'dp 按钮不可见（可能被裁/面板未开）');
+  check('D: 方向键 pointerdown 即时转向', false, 'dp 按钮不可见 dpadDisplay=' + (dpBtn && dpBtn.dpadDisplay));
 }
 
 // ---- E. touch-action:manipulation 生效 ----

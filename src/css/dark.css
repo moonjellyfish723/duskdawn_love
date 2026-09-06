@@ -832,6 +832,7 @@
   .gc-set-chev { color:#666; }
   .gc-set-row:active { background:var(--dark-hover); }
   .gc-set-row .txt { color:#ddd; }
+  .gc-set-stepper .txt { color:#ddd; }
   .gc-set-row .val { color:#888; }
   .gc-set-row .chev { color:#555; }
   .gc-set-warn { color:#e08a7a; background:rgba(224,138,122,.08); border-color:rgba(224,138,122,.35); }
