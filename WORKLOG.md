@@ -5,8 +5,11 @@
 - 【并行 #225 会话请查收】本口开工时树净，构建时你的 #225（pwa.js 更新条 24h 免打扰）批次已落树且工件齐备（哨兵+verify+台账行、构建解析过）→ 按「随库带上并行已声明批次」惯例一并收入本库 sw mochi-mtq20nhx：verify-ver-update-snooze **20/20**、你的哨兵含在 492/492 内。若还有在途增量，直接续改 pwa.js、下口构建带上即可，勿回滚本库产物。
 - 【真机:待验证】（真我/荣耀/小米 Edge 家族及任意机型）：①改美化/开关→立刻杀掉浏览器重开→改动保留不再回退；②表情/图片刷新后不再丢；③顶部更新条同版本 24h 内不重复弹（#225）。
 
-### 2026-09-07（#225 顶部更新条一直重复提醒——pwa.js 时间维免打扰收口）· 进行中 · **本次构建者：AI-B 本会话**
-- [AI-B 域]（计划改动：src/js/pwa.js、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#225 行）、tools/verify-ver-update-snooze.mjs（新增）。其余会话请勿并行构建/改 pwa.js。
+### 2026-09-07（#225 顶部更新条一直重复提醒——pwa.js showVerBar 时间维免打扰收口）· 已随 1e2630e 联合收口·已推送 origin/main
+- [AI-B 域]（**改动文件：src/js/pwa.js（showVerBar 弹条门追加 verSnoozed 24h 免打扰：新键 ver-update-notify 弹条即记「ts|时刻」——同版本含 ts 未知 24h 内不弹第二次；新键 ver-update-snooze 点稍后/刷新即记——24h 内任何版本全静默；verShouldNotify/按版本 ack 语义不变）、build.mjs（哨兵 +1）、FIX-REGRESSION.md（#225 行）、tools/verify-ver-update-snooze.mjs（新增 20 断言）**；构建状态：**本口未执行构建——由并行 #226 会话按「随库带上已声明批次」惯例构建收口（1e2630e·sw mochi-mtq20nhx·哨兵 492/492 哑 0）并推送，产物已核对含 #225 门锚点与存储键**）。
+- 根因（v3.26.x 按版本 ack 后用户复发报障，三洞）：① ack 只在点「刷新/稍后」时写——用户看到条不点（杀掉重开/切走），ack 不存在 → 同一版本每次打开都弹；② SW 通道拉 version.json 失败时 showVerBar() 无 ts 照弹，「宁多勿漏」整体绕过 ack（GitHub Pages 弱网常态）；③ 边修边部署一天多个版本 × 按版本 ack = 每个新部署必弹一次。
+- 验证：node --check 过；verify-ver-update-snooze **20/20**（vm 跑真实源码：首弹保留/同版本重开不二弹/弱网无 ts 不绕过/稍后 24h 全静默/25h 后恢复/ack 新旧语义兼容/刷新按钮 ack+snooze+refresh 三写）；脚本对 HEAD 旧版源码必红（有牙）；哨兵含在 492/492。
+- 备注：build.mjs 里本批哨兵名被并行会话写成「#226 更新条…」（与 #226 idbSetAll 撞号）——台账行号正确（202 行=#225、203 行=#226）、needle 各自唯一非哑哨兵，仅 name 串错，留待下口构建者顺手改回 #225，无产物影响。
 
 ### 2026-09-07 00:5x（#223 群聊颜色「一改就恢复」+ #224 摸鱼 chk 每分钟 dcfP 报错——荣耀畅玩40 Plus+夸克诊断报障，用户明说其他机型也有；已构建·sw mochi-mtq1331l·本次构建者：AI-A 本会话）
 - [AI-A 域]（**改动文件：src/js/group-chat.js（pickGcColor 删选色即回滚分支；新增 gcEnsureContrast 对比度自愈、接入 applyGcBeauty 尾部：out/in 组合对比 <1.5 时注入 #gc-contrast-fix 强制黑/白可读文字色，重入路径自动重算；低对比警告行文案改述新行为）、src/js/p2-features.js（chk 所在 IIFE 新增 dcfPFish 助手走 window.dcfGet，修跨 IIFE 引用 dcfP 必抛 ReferenceError）、build.mjs（哨兵 +2；#132 摸鱼锚 dcfP('fish',35)→dcfPFish(35)——原锚即作用域 bug 本体，改锚已在 name 里说明）、FIX-REGRESSION.md（#223/#224 行+设备索引「荣耀畅玩40 Plus（夸克）」行）、tools/verify-gc-color.mjs（新增 14 断言）、tools/verify-func-card-prob.mjs（A9 期望随 #224 更新）**；构建状态：**已构建·sw mochi-mtq1331l·哨兵 490/490 哑 0·sw 14/14**）。
