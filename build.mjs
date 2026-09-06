@@ -289,7 +289,7 @@ const FIX_SENTINELS = [
   { name: '群聊消息长按打开引用菜单（gcOpenMsgActions 长按+轻点）', file: 'js/group-chat.js', needle: 'gcOpenMsgActions' },
   { name: '错误记录双写 IndexedDB（readErrs 回退读取，防"最近错误：无"丢线索）', file: 'js/device.js', needle: 'idbSet(ERR_KEY' },
   { name: '更新条防重复（ver-update-ack-ts 按版本免打扰 + showVerBar 跨通道收口）', file: 'js/pwa.js', needle: 'ver-update-ack-ts' },
-  { name: '#226 更新条一直重复提醒收口（showVerBar 弹条门加 verSnoozed 时间维免打扰：同版本24h一弹+点按钮24h全静默）', file: 'js/pwa.js', needle: '!verShouldNotify(onlineTs) || verSnoozed(onlineTs)' },
+  { name: '#225 更新条一直重复提醒收口（showVerBar 弹条门加 verSnoozed 时间维免打扰：同版本24h一弹+点按钮24h全静默）', file: 'js/pwa.js', needle: '!verShouldNotify(onlineTs) || verSnoozed(onlineTs)' },
   { name: '公用拍一拍选中态去虚线统一（poke-tab-pub.sel 实心）', file: 'css/dark.css', needle: 'poke-tab-pub.sel { background:var(--ink)' },
   { name: '吃什么切菜单可直接选指定菜单（eatSwitchRenderChips 直选，不复用转盘）', file: 'js/p2-features.js', needle: 'function eatSwitchRenderChips' },
   { name: '导出聊天记录以 IDB 权威为准（lsBig 兜底，防取旧快照）', file: 'js/data-backup.js', needle: '留待 IndexedDB 权威读取' },
