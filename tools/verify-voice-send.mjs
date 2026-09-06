@@ -6,6 +6,7 @@
 //       闸门永不复位，之后每次点「开始录音」被静默忽略=面板看似点不动；④停止结账期间连点会偷走新录音机
 //       句柄。修复=停止结账统一收口 voiceFinalizeStop（voiceStopSettled 幂等闩）+ onstop 3s 看门狗 + 空数据
 //       可见失败态并换浏览器默认容器重试 + 麦克风 15s 启动看门狗（迟到流停轨防泄漏）+ voiceStopping 防重入。
+// 红绿对照：对 753cc65 旧源构建 16/24（R7 旧版停止后永久卡「正在录音…/停止录音」=报障原文复现；R8/R10/R11/R12/R14/R15/R16 亦红），修复后 24/24。
 // 断言：S* 静态锚（src 直查）；R* 运行时（无头 Chrome 走真实产物+真实面板流程，桩 MediaRecorder/getUserMedia
 //       精确复现 ok / onstop丢失 / 空数据 / onstop迟到连点 / 中途关面板 / getUserMedia挂起 六种形态）。
 import { spawn } from 'node:child_process';
@@ -100,7 +101,8 @@ async function evalJs(expr) {
 // 桩：在应用脚本之前注入。mode 控制故障形态；媒体能力全绿让面板进入真实录音状态机。
 const INIT = `(function(){
 try { localStorage.setItem('xy-home-v2:cs-voice-send','1'); localStorage.setItem('xy-home-v2:default:cs-voice-send','1'); } catch(e){}
-window.__v = { mode:'ok', recorders:[], streams:[], hangRes:null };
+window.__v = { mode:'ok', recorders:[], streams:[], hangRes:null, toasts:[] };
+window.__v._lt=''; setInterval(function(){ var t=document.getElementById('cc-toast'); var x=t?(t.textContent||''):''; if(x&&x!==window.__v._lt){ window.__v._lt=x; window.__v.toasts.push(x); } },50);
 navigator.mediaDevices.getUserMedia = function(){
   if (window.__v.mode === 'hang') {
     return new Promise(function(res){ window.__v.hangRes = function(){ var track={kind:'audio',stopped:false,stop:function(){this.stopped=true;}}; var s={_track:track,getTracks:function(){return [track];},getAudioTracks:function(){return [track];}}; window.__v.streams.push(s); res(s); }; });
@@ -149,9 +151,9 @@ await sleep(400);
 const panelOpen = await evalJs("(function(){var p=document.getElementById('voice-panel');return p&&!p.hidden?'1':'0';})()");
 check('R2 点麦克风弹出录音半框（初始态：开始录音/发送键灰）', panelOpen === '1' && (await evalJs("(function(){return document.getElementById('voice-record-btn').textContent;})()")) === '开始录音' && (await evalJs("(function(){return document.getElementById('voice-send-btn').disabled;})()")) === true);
 
-// ---- 场景 A：正常 录音→停止→试听→发送（基线不回归） ----
+// ---- 场景 A：正常 录音→停止→试听→发送（基线不回归；录满 1s 避开既有「太短(<800ms)丢弃」保护） ----
 await evalJs("(function(){window.__v.mode='ok';document.getElementById('voice-record-btn').click();return 1;})()");
-await sleep(400);
+await sleep(1100);
 const recUi = await evalJs("(function(){return JSON.stringify({st:document.getElementById('voice-status').textContent,rb:document.getElementById('voice-record-btn').textContent});})()");
 check('R3 录音态：正在录音… + 停止录音', recUi.includes('正在录音') && recUi.includes('停止录音'), recUi);
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()");
@@ -179,8 +181,9 @@ check('R7 看门狗 3s 结账：可见失败态「没录到声音数据」+ 按�
 // ---- 场景 C：空数据后换浏览器默认容器（mime 兜底）→ 录成功后兜底标记清除 ----
 await evalJs("(function(){window.__v.mode='ok';document.getElementById('voice-record-btn').click();return 1;})()");
 await sleep(400);
-const fallbackRec = await evalJs("(function(){var r=window.__v.recorders[window.__v.recorders.length-1];return JSON.stringify({opts:r.opts===null,n:r.recorders===undefined?window.__v.recorders.length:-1});})()");
-check('R8 兜底生效：新录音机不带 mimeType（浏览器自选默认容器）', fallbackRec.includes('"opts":null'), fallbackRec);
+const fallbackRec = await evalJs("(function(){var r=window.__v.recorders[window.__v.recorders.length-1];return JSON.stringify({defaultMime:r.opts===null});})()");
+check('R8 兜底生效：新录音机不带 mimeType（浏览器自选默认容器）', fallbackRec.includes('"defaultMime":true'), fallbackRec);
+await sleep(800);
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()");
 await sleep(500);
 const fallbackDone = await evalJs("(function(){return JSON.stringify({st:document.getElementById('voice-status').textContent,pv:!document.getElementById('voice-preview').hidden});})()");
@@ -190,29 +193,27 @@ await sleep(300);
 
 // ---- 场景 D：onstop 迟到 1.2s + 结账期间连点 → 不偷新录音机句柄、不二次结账 ----
 await evalJs("(function(){window.__v.mode='late-stop';document.getElementById('voice-record-btn').click();return 1;})()");
-await sleep(400);
+await sleep(900);
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()"); // 停止（onstop 1.2s 后才回）
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()"); // 结账窗口内连点=旧版会启动新录音机被旧结账偷走
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()"); // 再连点一次
 await sleep(400);
 const raceCnt = await evalJs("(function(){return window.__v.recorders.length;})()");
-check('R10 结账窗口内连点不创建新录音机（voiceStopping 防偷句柄）', raceCnt === 5, 'recorders=' + raceCnt);
+check('R10 结账窗口内连点不创建新录音机（voiceStopping 防偷句柄；至本步累计 4 台）', raceCnt === 4, 'recorders=' + raceCnt);
 await sleep(1300);
 const lateDone = await evalJs("(function(){return JSON.stringify({st:document.getElementById('voice-status').textContent,pv:!document.getElementById('voice-preview').hidden});})()");
 check('R11 onstop 迟到到达后正常结账进试听态', lateDone.includes('录制完成') && lateDone.includes('"pv":true'), lateDone);
 await sleep(2200);
 const latchUi = await evalJs("(function(){return JSON.stringify({st:document.getElementById('voice-status').textContent,pv:!document.getElementById('voice-preview').hidden});})()");
 check('R12 看门狗到期不二次结账（幂等闩：试听态不被空数据失败态覆盖）', latchUi.includes('录制完成') && latchUi.includes('"pv":true'), latchUi);
-await evalJs("(function(){window.__v.mode='ok';document.getElementById('voice-record-btn').click();return 1;})()"); // 清场：直接再停一次，把面板带回可开状态
-await sleep(1200);
-await evalJs("(function(){var p=document.getElementById('voice-panel');if(p)p.hidden=true;return 1;})()");
-await sleep(200);
+await evalJs("(function(){window.__v.mode='ok';document.getElementById('voice-close').click();return 1;})()"); // 清场：复位模式+试听态直接关面板（不再起录）
+await sleep(400);
 await evalJs("(function(){var b=document.getElementById('chat-mic-btn');if(b)b.click();return 1;})()");
 await sleep(300);
 
 // ---- 场景 E：录音中途关面板 → 静默丢弃不误报失败 ----
 await evalJs("(function(){document.getElementById('voice-record-btn').click();return 1;})()");
-await sleep(400);
+await sleep(500);
 await evalJs("(function(){document.getElementById('voice-close').click();return 1;})()");
 await sleep(600);
 const closedOk = await evalJs("(function(){var t=document.getElementById('cc-toast');return JSON.stringify({panelHidden:document.getElementById('voice-panel').hidden,failToast:t&&/没录到/.test(t.textContent||'')});})()");
@@ -223,7 +224,7 @@ await sleep(300);
 // ---- 场景 F：getUserMedia 永久挂起 → 15s 看门狗报错复位（闸门不再永久锁死）+ 迟到流停轨 ----
 await evalJs("(function(){window.__v.mode='hang';document.getElementById('voice-record-btn').click();return 1;})()");
 await sleep(16500);
-const hangToast = await evalJs("(function(){var t=document.getElementById('cc-toast');return JSON.stringify({txt:t?(t.textContent||''):''});})()");
+const hangToast = await evalJs("(function(){return JSON.stringify({hist:window.__v.toasts});})()");
 check('R14 麦克风挂起 15s 后报「麦克风无响应」并复位（旧版 voiceStarting 永久锁死=之后点不动）', hangToast.includes('麦克风无响应'), hangToast);
 await evalJs("(function(){if(window.__v.hangRes)window.__v.hangRes();return 1;})()");
 await sleep(300);
