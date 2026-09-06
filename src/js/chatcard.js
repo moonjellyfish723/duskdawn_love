@@ -3123,6 +3123,47 @@
     // v3.15.x：统一走 hydrateScope（成功后自动清缓存/刷新角标与界面）
     return hydrateScope(ccScope === 'public' ? 'public' : 'own');
   }
+  // v3.32.x：公用/专享字卡「只加了一点点」时的使用提醒——【默认聊天字卡】触发概率默认
+  // 只有 30%。用户自建字卡很少时，联系人(TA)回复约 70% 会反复抽那几十张自建卡 + 30% 用
+  // 默认卡补位，体感「一直重复相同内容」。进入公用/专属字卡页（基础聊天入口）且满足条件
+  // 时提醒，频控 = 每天最多一次（cc-lowcard-remind 存上次提醒日期，同日不再弹，次日首触
+  // 再弹——条件不满足的日子不打扰；用户要求「每天首次使用也会提醒」）。触发条件：
+  //   ① 自建聊天字卡（公用+专属，剔除功能分类）>0 且 <5000；
+  //   ② 默认聊天字卡总开关开启、聊天场景使用开启；
+  //   ③ 聊天触发概率仍维持默认 30%（dc-overall-chat 未设或 ==30）。
+  // 说明：仅当用户完全没添加任何自建聊天字卡时才会 100% 走默认字卡（getPool 兜底已保证，
+  // 此需求确认现有行为即可，不改回复池逻辑）。
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function maybeLowCardsRemind() {
+    try {
+      if (!(window.activeStore && window.activeStore().get && window.activeStore().set && window.openModal)) return;
+      if (CC_FUNC_KEYS.indexOf(cur) >= 0) return; // 其他互动功能字卡入口不提醒
+      let n = 0;
+      [ownGroupsRaw(), pubGroupsRaw()].forEach(src => {
+        if (!src) return;
+        CC_TYPES.forEach(t => { ((src[t] || []) || []).forEach(g => { if (Array.isArray(g) && Array.isArray(g[1])) n += g[1].length; }); });
+      });
+      if (!(n > 0 && n < 5000)) return;
+      const dcfg = (window.defaultCardCfg && window.defaultCardCfg()) || {};
+      if (dcfg.enabled === false) return;
+      if (window.defaultCardUse && !window.defaultCardUse('chat')) return;
+      const p = window.activeStore().get('dc-overall-chat');
+      if (p !== null && Number(p) !== 30) return; // 已调过概率→不提醒
+      const tk = todayKey();
+      if (window.activeStore().get('cc-lowcard-remind') === tk) return; // 今天已提醒过
+      try { window.activeStore().set('cc-lowcard-remind', tk); } catch (e) {}
+      window.openModal('字卡使用提醒', '', null, {
+        noInput: true,
+        staticText: '你现在自建了 ' + n + ' 张聊天字卡，但【默认聊天字卡】的触发概率仍是默认的 30%。\n\n' +
+          '如果你不再多添加自建字卡、也不把【默认聊天字卡】的触发概率调高，联系人(TA)回复时可能因为自建字卡太少，一直重复使用相同内容的字卡。\n\n' +
+          '建议：在字卡库里多添加一些自建字卡，或在「预设字卡 → 聊天默认字卡」里把触发概率调高。\n\n' +
+          '（说明：只有当你完全没添加任何自建字卡时，联系人才会 100% 使用默认聊天字卡。）'
+      });
+    } catch (e) {}
+  }
   function openCcPage(scope, startTab) {
     // v3.29.x：先落盘上一作用域的未保存变更——原 clearTimeout 会静默丢弃 120ms
     // 防抖窗口内刚上传/编辑的内容（切到另一作用域后刷新即丢）
@@ -3150,6 +3191,7 @@
     document.querySelectorAll('.page').forEach(p => p.hidden = true);
     const ccPage = document.getElementById('page-custom-cards');
     if (ccPage) ccPage.hidden = false;
+    maybeLowCardsRemind(); // v3.32.x：自建聊天字卡很少时提醒默认字卡 30% 概率
     hydrateCurScope().then(() => {
       groups = loadGroups();
       try { renderGroupsBar(); render(); } catch (e) {}

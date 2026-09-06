@@ -8805,9 +8805,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788631403505">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.486</b></span>
-        <span class="sv-deploy">部署于 2026-09-06 02:03<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788677524212">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.487</b></span>
+        <span class="sv-deploy">部署于 2026-09-06 14:52<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9954,7 +9954,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.486</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.487</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10245,7 +10245,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.486</span>
+              <span class="lic-ver">v3.26.487</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -36594,6 +36594,37 @@ try { fk = ccScope === 'public' ? (PUB_PREFIX + ':' + PUB_KEY) : (window.activeP
 if (!hydAbsent[fk]) { try { toast('字卡较多，正在加载…'); } catch (e) {} }
 return hydrateScope(ccScope === 'public' ? 'public' : 'own');
 }
+function todayKey() {
+const d = new Date();
+return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function maybeLowCardsRemind() {
+try {
+if (!(window.activeStore && window.activeStore().get && window.activeStore().set && window.openModal)) return;
+if (CC_FUNC_KEYS.indexOf(cur) >= 0) return; // 其他互动功能字卡入口不提醒
+let n = 0;
+[ownGroupsRaw(), pubGroupsRaw()].forEach(src => {
+if (!src) return;
+CC_TYPES.forEach(t => { ((src[t] || []) || []).forEach(g => { if (Array.isArray(g) && Array.isArray(g[1])) n += g[1].length; }); });
+});
+if (!(n > 0 && n < 5000)) return;
+const dcfg = (window.defaultCardCfg && window.defaultCardCfg()) || {};
+if (dcfg.enabled === false) return;
+if (window.defaultCardUse && !window.defaultCardUse('chat')) return;
+const p = window.activeStore().get('dc-overall-chat');
+if (p !== null && Number(p) !== 30) return; // 已调过概率→不提醒
+const tk = todayKey();
+if (window.activeStore().get('cc-lowcard-remind') === tk) return; // 今天已提醒过
+try { window.activeStore().set('cc-lowcard-remind', tk); } catch (e) {}
+window.openModal('字卡使用提醒', '', null, {
+noInput: true,
+staticText: '你现在自建了 ' + n + ' 张聊天字卡，但【默认聊天字卡】的触发概率仍是默认的 30%。\n\n' +
+'如果你不再多添加自建字卡、也不把【默认聊天字卡】的触发概率调高，联系人(TA)回复时可能因为自建字卡太少，一直重复使用相同内容的字卡。\n\n' +
+'建议：在字卡库里多添加一些自建字卡，或在「预设字卡 → 聊天默认字卡」里把触发概率调高。\n\n' +
+'（说明：只有当你完全没添加任何自建字卡时，联系人才会 100% 使用默认聊天字卡。）'
+});
+} catch (e) {}
+}
 function openCcPage(scope, startTab) {
 flushCcSave();
 ccScope = scope === 'public' ? 'public' : 'own';
@@ -36615,6 +36646,7 @@ t.hidden = ccFuncOnly ? !isFunc : isFunc;
 document.querySelectorAll('.page').forEach(p => p.hidden = true);
 const ccPage = document.getElementById('page-custom-cards');
 if (ccPage) ccPage.hidden = false;
+maybeLowCardsRemind(); // v3.32.x：自建聊天字卡很少时提醒默认字卡 30% 概率
 hydrateCurScope().then(() => {
 groups = loadGroups();
 try { renderGroupsBar(); render(); } catch (e) {}
@@ -79667,4 +79699,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtooyfox -->
+<!-- __MOCHI_EOF__ mtpgeyno -->
