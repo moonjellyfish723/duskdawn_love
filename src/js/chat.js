@@ -1731,7 +1731,7 @@ const w = rpWalletGet();
 w.systemBalance += Math.round((rpRec.rpAmount || 0) * 100);
 rpWalletSet(w);
 saveMsgsNow();
-renderWindow(true, true);
+if (!rpPatchStatusInPlace(msgs.indexOf(rpRec))) renderWindow(true, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rpRec.rpAmount || 0).toFixed(2) + '）';
 setTimeout(() => addIn('你退回了红包' + amtTxt, { special: 'poke' }), randInt(300, 800));
 }, { okText: '退回', cancelText: '取消' });
@@ -1774,7 +1774,7 @@ rpWalletSet(wallet);
 saveMsgsNow();
 const amtTxt = '（心意币 ¥' + Number(rpRec.rpAmount || 0).toFixed(2) + '）';
 toast('已领取' + amtTxt);
-renderWindow(true, true);
+if (!rpPatchStatusInPlace(rpIdx)) renderWindow(true, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 setTimeout(() => addIn('你领取了红包' + amtTxt, { special: 'poke' }), randInt(400, 1000));
 return;
 }
@@ -4683,6 +4683,28 @@ if (st === 'received') return 'opened';
 if (st === 'expired' || st === 'returned') return 'expired';
 return '';
 }
+// FIX 2026-09-07 #230 红包状态流转闪屏：领取/退回/TA领取/TA退回此前一律 renderWindow
+// 整窗重建——body.innerHTML='' 后全部气泡（img 重新解码）＝肉眼整屏闪一下，是 #211/#220
+// 同根因（整窗重建闪动）家族的最后一条未收口路径；领红包必经此处＝所有机型每次必闪
+//（与机型、历史条数无关，#211/#220 的窗口闸拦不到它，无头实测点击即 add31/rem31）。
+// 改原地补丁：只更新该卡片的 opened/expired class 与状态文案（卡片尺寸不变＝无布局跳动，
+// childList 零变动＝零闪动）；卡片不在当前渲染窗口（历史被裁剪出窗口等）时回退调用方的
+// 原整窗渲染，行为与旧版一致。
+function rpPatchStatusInPlace(idx) {
+const rec = msgs[idx];
+if (!rec || rec.special !== 'redpacket') return false;
+if (!body) return false;
+const el = body.querySelector('.msg-rp[data-idx="' + idx + '"]');
+if (!el) return false;
+const card = el.querySelector('.msg-rp-card');
+if (!card) return false;
+card.classList.remove('opened', 'expired');
+const cls = rpStatusCls(rec);
+if (cls) card.classList.add(cls);
+const st = card.querySelector('.msg-rp-status');
+if (st) st.textContent = rpStatusText(rec);
+return true;
+}
 function trySystemAutoSend() {
 if (rpDailyCount() >= 5) return;
 const qixi = isQixiToday();
@@ -4784,7 +4806,7 @@ rec.rpStatus = 'returned';
 wallet.myBalance += amtFen;
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 退回了你的红包（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）', { special: 'poke' }); }, randInt(500, 1200));
 } else if (r < 0.9) {
 rec.rpStatus = 'received';
@@ -4792,7 +4814,7 @@ rec.rpOpenedAt = Date.now();
 wallet.systemBalance += amtFen;
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）';
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 领取了你的红包' + amtTxt, { special: 'poke' }); }, randInt(400, 1000));
 rpCollectFeedback();
@@ -4809,7 +4831,7 @@ const wallet = rpWalletGet();
 wallet.systemBalance += Math.round((rec.rpAmount || 0) * 100);
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）';
 const myCid = window.__activeCid || 'default';
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 领取了你的红包' + amtTxt, { special: 'poke' }); }, randInt(400, 1000));

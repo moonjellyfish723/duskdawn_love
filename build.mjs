@@ -693,6 +693,8 @@ const FIX_SENTINELS = [
   { name: '#224 摸鱼抓包 chk 作用域修复（本 IIFE 自备 dcfPFish 走 window.dcfGet——删助手改回跨 IIFE 引用 dcfP 即回归：每分钟 ReferenceError dcfP is not defined）', file: 'js/p2-features.js', needle: 'function dcfPFish(def)' },
   { name: '#226 idbSetAll 挂起超时骨架（#166 微批化后挂起内核上 wrj 标记/媒体池 flush 永不落地、false 兜底不可达=杀进程回滚 LS 后自愈失效「刷新后丢美化/丢数据」——删超时骨架即回归）', file: 'js/idb.js', needle: 'const lim = 4000 + (est > 262144' },
   { name: '#229 wrj 合并失败重试（原入口即置 merged+idbGetAllKeys 把读失败折叠成空数组：挂起内核上自愈第二道防线空转一次全会话放弃=LS 回滚的美化/设置/小数据本会话无法恢复「部分数据丢失」——改回一次性放弃即回归）', file: 'js/idb.js', needle: 'if (!keys) { wrjMergeRetry(); return; }' },
+  { name: '#230 红包状态流转原地补丁（领取/退回/TA领取/TA退回/自动领取此前一律 renderWindow 整窗重建=全部气泡 img 重新解码=领取红包必闪屏，#211/#220 同族最后一条未收口路径、与机型历史条数无关；改回无条件整窗即回归）', file: 'js/chat.js', needle: "card.classList.remove('opened', 'expired');" },
+  { name: '#230 用户领取红包路径守卫（报障主路径：点击红包卡先试原地补丁，卡片不在渲染窗口才回退整窗）', file: 'js/chat.js', needle: 'if (!rpPatchStatusInPlace(rpIdx)) renderWindow(true, true);' },
 ];
 try {
   const built = CHECK_SENTINELS ? '' : readFileSync(join(root, 'index.html'), 'utf8');

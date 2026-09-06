@@ -1,3 +1,11 @@
+### 2026-09-07 02:3x（#230 领取红包闪屏——红包状态流转五处 renderWindow 整窗重建改 rpPatchStatusInPlace 原地补丁；#211/#220 同族最后一条未收口路径；已构建已提交 734ce5a·sw mochi-mtq55x3h·本次构建者：AI-A 本会话）
+- [AI-A 域]（**改动文件：src/js/chat.js（rpStatusCls 后新增 rpPatchStatusInPlace 原地补丁助手：只更新该红包卡 opened/expired class+状态文案，childList 零变动；用户领取/长按退回/TA领取/TA退回/自动领取五处 renderWindow 改「先试补丁、卡片不在渲染窗口才回退整窗」）、build.mjs（哨兵 +2：助手补丁表达式+领取路径守卫，chat.js 内唯一）、FIX-REGRESSION.md（#230 行）、tools/verify-rp-claim.mjs（新增 11 断言）**；构建状态：**已构建·sw 见 version.json·本口执行·随库带上并行 bg-keep.js 在途批次（见下方查收声明）**）。
+- 需求：用户报障「领取红包会闪屏」，明说其他设备型号也有。根因：领取/长按退回/TA领取/TA退回/自动领取五处红包状态流转一律 renderWindow 整窗重建——body.innerHTML='' 后全部气泡（img 重新解码）＝肉眼整屏闪一下，#211/#220 同根因家族最后一条未收口路径；领红包必经此处＝所有机型每次必闪（与机型、历史条数无关，#211/#220 的窗口闸拦不到它，无头实测点击即 add31/rem31）。
+- 修复原则（回应「不要覆盖修改导致不同机型 bug 反复」）：#211/#220 已修路径一行未动；本批只在红包状态流转这一条新路径上按同族已验证模式收口，卡片尺寸不变无布局跳动，回退路径与旧版行为一致；#228 语音兜底（同文件）原样保留。
+- 验证：node --check 过；--check-sentinels 500 全绿哑 0；tools/verify-rp-claim.mjs **红绿对照：修复前（HEAD 产物）6/11——S3「卡片节点被重建+同批增删 31/31」精确复现报障闪屏，修复后 11/11**；verify-chat-rebuild、verify-voice-send 复跑见本条验证记录（家族+同文件相邻不回归）。
+- 【真机:待验证】（任意机型）：①聊天里点 TA 发的红包→卡片变「已领取」、消息区**不再整屏闪一下**、随后追加「你领取了红包」回执；②长按红包退回同样不闪；③TA 领取/退回我发的红包时若正在看聊天，消息区同样不闪。
+- 【并行 bg-keep 会话请查收】树上你口未提交的 src/js/bg-keep.js（通知去重窗口 15→5/6→2 分钟+前台看过 3 分钟独立窗口）本口未触碰、node --check 过；你口 02:20 构建的产物（mtq508c6，已含 bg-keep 未含本口红包修复）被本口构建覆盖为新 sw（含两者）——你的批次已随本库入库，WORKLOG/verify/台账若未登记请自行补登，勿回滚本库产物。
+
 ### 2026-09-07 02:0x（#228 发语音「点结束卡在输入中/正在录音，发不出去」——OPPO Reno6 5G+雨见 Gecko 诊断报障、用户明说多机型同发；#169 同机续报。源码已随并行 7552990 随库入库，本笔收口 verify 修正+台账+登记）
 - [AI-A 域]（**改动文件：src/js/chat.js（语音面板停止链路四处兜底：voiceFinalizeStop 统一结账+voiceStopSettled 幂等闩、onstop 3s 看门狗、空数据可见失败态+voiceMimeFallback 换默认容器、acquireVoiceStreamGuarded 15s 启动看门狗+迟到流停轨、voiceStopping 防重入）、build.mjs（哨兵 +4，chat.js 内唯一逻辑锚）、FIX-REGRESSION.md（#228 行+设备索引 OPPO Reno6 5G 行）、tools/verify-voice-send.mjs（新增 24 断言）**；构建状态：**源码与产物已随并行 idb 会话 7552990（sw mochi-mtq3hasn）入库——其 commit message 注明「红5项归属其会话定性」，本笔定性+修正后 24/24；本口无 src/产物改动、无需再构建（index.html grep voiceStopWatchdog=5 实证产物已含）**）。
 - 根因（chat.js 录音停止链路四个静默卡死洞，诊断错误环零语音异常=静默卡死实证）：①雨见等慢壳 ondataavailable/onstop 迟到或丢失→stop() 后无结账事件，面板永远停「正在录音…」、试听/发送键永不出现；②录出空数据（isTypeSupported 谎报的容器）时旧 onVoiceRecStop 对空 blob 静默 return→同样永久卡死零提示；③getUserMedia 永久挂起（壳权限委托异常）→#169 的 voiceStarting 闸门永不复位→之后每次点「开始录音」被静默忽略=面板看似点不动；④停止结账窗口连点→新录音机句柄被旧结账偷走。用户口述「点结束还是显示输入中」即①/②的面板卡「正在录音…」形态。

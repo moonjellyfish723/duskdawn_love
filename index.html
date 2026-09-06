@@ -8812,9 +8812,9 @@ transition-duration: .01ms !important;
     <!-- v3.8.y：底部统一装进一个卡片框（版本/加载/提示/按钮成一整体，与顶部品牌卡片呼应） -->
     <div class="splash-footcard">
       <!-- v3.8.y：底部版本块——两行：名称+版本 / 部署时间+实时秒数（实时秒写入 #splash-ver-live） -->
-      <div class="splash-ver" id="splash-ver" data-build-ts="1788716264423">
-        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.503</b></span>
-        <span class="sv-deploy">部署于 2026-09-07 01:37<span id="splash-ver-live"></span></span>
+      <div class="splash-ver" id="splash-ver" data-build-ts="1788719092685">
+        <span class="sv-app">Mochi 字卡传讯 <b>v3.26.505</b></span>
+        <span class="sv-deploy">部署于 2026-09-07 02:24<span id="splash-ver-live"></span></span>
       </div>
       <!-- v3.5.120：数据（IndexedDB 回填）加载完成前不显示「点击进入」按钮，
            只显示加载提示；就绪后按钮才出现（clock.js 控制显隐） -->
@@ -9961,7 +9961,7 @@ transition-duration: .01ms !important;
           <div class="txt">清除本地数据</div>
         </div>
       </div>
-      <div class="ver">Mochi 字卡传讯 v3.26.503</div>
+      <div class="ver">Mochi 字卡传讯 v3.26.505</div>
       <div class="ver-credit">原版小红书@言序（1842523578）</div>
       <!-- v3.27.x：设置页底部防骗声明 -->
       <div class="set-alert">
@@ -10252,7 +10252,7 @@ transition-duration: .01ms !important;
             <div class="lic-hero-top">
               <div class="lic-title">Mochi 字卡传讯</div>
               <span class="lic-badge">原版</span>
-              <span class="lic-ver">v3.26.503</span>
+              <span class="lic-ver">v3.26.505</span>
             </div>
             <div class="lic-p">原创极简风情侣聊天模拟器：黑白灰简约设计，数据全部保存在本地、无需联网；所有内容均为代码触发、按概率运行，联系方可主动发送聊天消息。代码从零编写并完全开源——本作即原版。</div>
             <div class="lic-pills">
@@ -25810,7 +25810,7 @@ const w = rpWalletGet();
 w.systemBalance += Math.round((rpRec.rpAmount || 0) * 100);
 rpWalletSet(w);
 saveMsgsNow();
-renderWindow(true, true);
+if (!rpPatchStatusInPlace(msgs.indexOf(rpRec))) renderWindow(true, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rpRec.rpAmount || 0).toFixed(2) + '）';
 setTimeout(() => addIn('你退回了红包' + amtTxt, { special: 'poke' }), randInt(300, 800));
 }, { okText: '退回', cancelText: '取消' });
@@ -25851,7 +25851,7 @@ rpWalletSet(wallet);
 saveMsgsNow();
 const amtTxt = '（心意币 ¥' + Number(rpRec.rpAmount || 0).toFixed(2) + '）';
 toast('已领取' + amtTxt);
-renderWindow(true, true);
+if (!rpPatchStatusInPlace(rpIdx)) renderWindow(true, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 setTimeout(() => addIn('你领取了红包' + amtTxt, { special: 'poke' }), randInt(400, 1000));
 return;
 }
@@ -28562,6 +28562,21 @@ if (st === 'received') return 'opened';
 if (st === 'expired' || st === 'returned') return 'expired';
 return '';
 }
+function rpPatchStatusInPlace(idx) {
+const rec = msgs[idx];
+if (!rec || rec.special !== 'redpacket') return false;
+if (!body) return false;
+const el = body.querySelector('.msg-rp[data-idx="' + idx + '"]');
+if (!el) return false;
+const card = el.querySelector('.msg-rp-card');
+if (!card) return false;
+card.classList.remove('opened', 'expired');
+const cls = rpStatusCls(rec);
+if (cls) card.classList.add(cls);
+const st = card.querySelector('.msg-rp-status');
+if (st) st.textContent = rpStatusText(rec);
+return true;
+}
 function trySystemAutoSend() {
 if (rpDailyCount() >= 5) return;
 const qixi = isQixiToday();
@@ -28657,7 +28672,7 @@ rec.rpStatus = 'returned';
 wallet.myBalance += amtFen;
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 退回了你的红包（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）', { special: 'poke' }); }, randInt(500, 1200));
 } else if (r < 0.9) {
 rec.rpStatus = 'received';
@@ -28665,7 +28680,7 @@ rec.rpOpenedAt = Date.now();
 wallet.systemBalance += amtFen;
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）';
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 领取了你的红包' + amtTxt, { special: 'poke' }); }, randInt(400, 1000));
 rpCollectFeedback();
@@ -28682,7 +28697,7 @@ const wallet = rpWalletGet();
 wallet.systemBalance += Math.round((rec.rpAmount || 0) * 100);
 rpWalletSet(wallet);
 saveMsgsNow();
-renderWindow(false, true);
+if (!rpPatchStatusInPlace(idx)) renderWindow(false, true); // FIX 2026-09-07 #230 红包状态流转不整窗重建（闪屏）
 const amtTxt = '（心意币 ¥' + Number(rec.rpAmount || 0).toFixed(2) + '）';
 const myCid = window.__activeCid || 'default';
 setTimeout(() => { if ((window.__activeCid || 'default') !== myCid) return; addIn('TA 领取了你的红包' + amtTxt, { special: 'poke' }); }, randInt(400, 1000));
@@ -52240,8 +52255,9 @@ window.addEventListener('pageshow', markVisible);
 window.addEventListener('focus', markVisible);
 })();
 const NOTIFY_HIDDEN_MIN_MS = 15000;
-const NOTIFY_CHAT_DUP_MS = 15 * 60000; // v3.13.x：30→15 分钟
-const NOTIFY_SENT_DUP_MS = 6 * 60000;  // v3.13.x：10→6 分钟
+const NOTIFY_CHAT_DUP_MS = 5 * 60000;  // v3.20.x：历史聊天查重 15→5 分钟
+const NOTIFY_SENT_DUP_MS = 2 * 60000;  // v3.20.x：已发通知查重 6→2 分钟
+const NOTIFY_SEEN_DUP_MS = 3 * 60000;  // v3.20.x：前台看过记忆 15→3 分钟
 function normNotifyKey(raw) {
 let s = String(raw || '');
 if (s.length > 1024) s = s.slice(0, 1024); // 先截断再正则，避免超长 base64 全文替换开销
@@ -52335,7 +52351,7 @@ seenRecently.delete(seenRecently.keys().next().value);
 function seenDup(key) {
 if (!key) return false;
 const last = seenRecently.get(key);
-return !!(last && Date.now() - last < NOTIFY_CHAT_DUP_MS);
+return !!(last && Date.now() - last < NOTIFY_SEEN_DUP_MS);
 }
 let gateStats = { total: 0, tooFresh: 0, dup: 0, sent: 0 };
 window.bgNotifyGateStats = function () { return Object.assign({}, gateStats); };
@@ -80539,4 +80555,4 @@ return { lock: document.body.classList.contains('scroll-lock'), open: open };
 <!-- __MOCHI_EOF__ -->
 </body>
 </html>
-<!-- __MOCHI_EOF__ mtq3hasn -->
+<!-- __MOCHI_EOF__ mtq55x3h -->

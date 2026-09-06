@@ -961,8 +961,14 @@
     window.addEventListener('focus', markVisible);
   })();
   const NOTIFY_HIDDEN_MIN_MS = 15000;
-  const NOTIFY_CHAT_DUP_MS = 15 * 60000; // v3.13.x：30→15 分钟
-  const NOTIFY_SENT_DUP_MS = 6 * 60000;  // v3.13.x：10→6 分钟
+  // v3.20.x：去重窗口大幅缩短（15→5 分 / 6→2 分 / 新增前台看过 3 分）——
+  // 「经常收不到」的根因：TA 字卡池有限（常用短语/表情包重复率高），长窗口内容去重
+  // 会把【内容恰好与最近聊过/发过相同的新消息】误判为重放而吞掉。重放源头已分别
+  // 堵住（psync 补投递 silent、切后台过渡期 15s 闸门、回前台按实际发送数汇总），
+  // 去重只需覆盖「几分钟内的同条消息多机制重弹」短窗口即可
+  const NOTIFY_CHAT_DUP_MS = 5 * 60000;  // v3.20.x：历史聊天查重 15→5 分钟
+  const NOTIFY_SENT_DUP_MS = 2 * 60000;  // v3.20.x：已发通知查重 6→2 分钟
+  const NOTIFY_SEEN_DUP_MS = 3 * 60000;  // v3.20.x：前台看过记忆 15→3 分钟
   // 通知文本归一化：剥 dataURL/语音 ||| 段/SVG 标签，去空白后取前 100 字符做指纹
   function normNotifyKey(raw) {
     let s = String(raw || '');
@@ -1086,8 +1092,10 @@
   }
   function seenDup(key) {
     if (!key) return false;
+    // v3.20.x：前台看过记忆用独立短窗口（3 分钟）——字卡池有限，长窗口会把
+    // 「内容恰好相同的新消息」误吞（用户实测：经常收不到后台弹窗）
     const last = seenRecently.get(key);
-    return !!(last && Date.now() - last < NOTIFY_CHAT_DUP_MS);
+    return !!(last && Date.now() - last < NOTIFY_SEEN_DUP_MS);
   }
   // v3.13.x：拦截统计——诊断"只听见声音不弹窗"时一屏看出每条消息卡在哪道闸门
   let gateStats = { total: 0, tooFresh: 0, dup: 0, sent: 0 };
