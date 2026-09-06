@@ -2129,6 +2129,30 @@ window.mochiViewportForm = function (sig) {
       kb: (function () { try { return window.__mochiIosKb ? window.__mochiIosKb() : null; } catch (e) { return null; } })()
     };
     inp.diff = inp.screenH && inp.innerH ? inp.screenH - inp.innerH : 0;
+    // #214：页面专项采集（聊天/主页——问题集中地，用户点名）
+    try {
+      var _chatPg = document.getElementById('page-chat');
+      var _cBody = document.getElementById('chat-body');
+      var _cRow = document.querySelector('#page-chat .chat-input-row');
+      var _cRowR = _cRow ? _cRow.getBoundingClientRect() : null;
+      inp.chat = { visible: !!(_chatPg && !_chatPg.hidden),
+        msgs: _cBody ? _cBody.children.length : -1,
+        bodySH: _cBody ? _cBody.scrollHeight : 0, bodyCH: _cBody ? _cBody.clientHeight : 0,
+        inputBottom: _cRowR ? Math.round(_cRowR.bottom) : null,
+        inputW: _cRowR ? Math.round(_cRowR.width) : 0 };
+    } catch (eC1) {}
+    try {
+      var _pool = document.getElementById('desk-widget-pool');
+      var _poolNodes = _pool ? _pool.querySelectorAll('[data-desk-widget]') : [];
+      var _tabR = document.querySelector('.tabbar');
+      var _tabRR = _tabR ? _tabR.getBoundingClientRect() : null;
+      inp.home = { visible: !!(document.getElementById('page-phone') && !document.getElementById('page-phone').hidden),
+        slides: document.querySelectorAll('#desktop-pages .page-slide').length,
+        apps: document.querySelectorAll('#desktop-pages .app').length,
+        poolN: _poolNodes.length,
+        poolNames: (function () { var a = []; _poolNodes.forEach(function (n) { a.push(n.getAttribute('data-desk-widget')); }); return a.join(','); })(),
+        tabBottom: _tabRR ? Math.round(_tabRR.bottom) : null };
+    } catch (eC2) {}
     inp.iosMajor = (function () { try { var a = /OS (\d+)_/.exec(navigator.userAgent || ''); var b = /Version\/(\d+)\./.exec(navigator.userAgent || ''); return Math.max(a ? +a[1] : 0, b ? +b[1] : 0); } catch (e) { return 0; } })();
     inp.osLine = (function () { try { var m1 = /iPhone OS (\d+_\d+(?:_\d+)?) like/.exec(navigator.userAgent || ''); var m2 = /Version\/(\d+\.\d+)/.exec(navigator.userAgent || ''); return 'iOS ' + (m1 ? m1[1].replace(/_/g, '.') : '?') + ' / Safari ' + (m2 ? m2[1] : '?'); } catch (e) { return '未知'; } })();
     // #209：用户「顶部避让修正」声明（#186：声明=覆盖形态）——此前漏传，判定器
@@ -2168,6 +2192,27 @@ window.mochiViewportForm = function (sig) {
     L.push('.phone：计算高=' + inp.phoneH + 'px  padding-top=' + inp.phonePadTop + '  底边=' + inp.phoneBottom + 'px');
     L.push('.statusbar：padding-top=' + inp.sbPadTop + '  顶位=' + inp.sbTop + 'px');
     L.push('.tabbar：底边=' + (inp.tabBottom != null ? inp.tabBottom + 'px' : 'n/a') + '（可视 ' + inp.innerH + '）');
+    // v3.26.x #214：页面专项（用户点名聊天/主页两处问题集中地）
+    try {
+      const c = inp.chat || {};
+      L.push('');
+      L.push('== 聊天页 ==');
+      L.push('可见=' + (c.visible ? '是' : '否（当前不在聊天页，下列为容器实测）') + '  消息节点=' + c.msgs + '  内容高/可视=' + c.bodySH + '/' + c.bodyCH);
+      L.push('输入栏：底边=' + (c.inputBottom != null ? c.inputBottom + 'px' : 'n/a') + ' / 宽=' + c.inputW + 'px（可视底 ' + inp.innerH + 'px）');
+      if (c.visible && c.inputBottom != null && !inp.kb) {
+        const gapB = inp.innerH - c.inputBottom;
+        if (gapB > 4) L.push('⚠ 聊天输入栏未贴底：底边距可视区底 ' + gapB + 'px（键盘已收；反复出现请整段反馈）');
+        else if (gapB < -4) L.push('⚠ 聊天输入栏超出可视区 ' + (-gapB) + 'px');
+        else L.push('输入栏贴底 ✓');
+      }
+    } catch (eR1) {}
+    try {
+      const h = inp.home || {};
+      L.push('');
+      L.push('== 主页 ==');
+      L.push('页数=' + h.slides + '  桌面图标=' + h.apps + '  池内组件=' + h.poolN + (h.poolN > 0 ? '（' + h.poolNames + '——桌面缺组件即在此处，装修模式可加回）' : ''));
+      L.push('tabbar：底边=' + (h.tabBottom != null ? h.tabBottom + 'px' : 'n/a'));
+    } catch (eR2) {}
     L.push('');
     L.push('== 自动判定 ==');
     F.forEach(f => L.push((f.ok ? '✓ ' : '✗ ') + f.name + (f.detail ? '\n    ' + f.detail : '')));

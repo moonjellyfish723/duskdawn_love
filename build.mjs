@@ -269,6 +269,8 @@ const FIX_SENTINELS = [
   { name: '#213 视口时间线环形缓冲（每秒 1 拍保留 60 条，瞬态回放数据源）', file: 'js/mobile-adapt.js', needle: 'function vvLogPush()' },
   { name: '#213 屏幕适配报告尾部视口时间线回放段', file: 'js/device.js', needle: '近 60 秒视口时间线（键盘开合/缩放/白带瞬态回放）' },
   { name: '#213 报告系统版本行（形态判定依赖 iOS/Safari 版本映射）', file: 'js/device.js', needle: "系统=' + (inp.osLine" },
+  { name: '#214 屏幕适配报告页面专项：聊天页（可见/消息节点/输入栏贴底）', file: 'js/device.js', needle: '输入栏：底边=' },
+  { name: '#214 屏幕适配报告页面专项：主页（页数/图标/池内组件清单）', file: 'js/device.js', needle: '池内组件=' },
   { name: '#174 viewport meta 锁 minimum-scale=1（iOS26 主屏幕形态 scale≈0.85 缩小致顶部露白，meta 防线）', file: 'template.html', needle: 'minimum-scale=1.0' },
   { name: '#174 独立应用缩放异常自愈（scale<0.95 重写 viewport meta 吸附回 1，限 3 次）', file: 'js/mobile-adapt.js', needle: '_zoomFixCnt < 3 && _now - _zoomFixAt > 4000' },
   { name: '#146 组件透明度小数脏值解析 opacityRawToPct（≤1 按 ×100 换算，修随机美化写 0.9/1 被 parseInt 成 0 → 小组件全透明）', file: 'js/personalize.js', needle: 'opacityRawToPct' },
