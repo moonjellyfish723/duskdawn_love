@@ -392,6 +392,14 @@ console.log('已复制 PWA 文件 → ' + pwaFiles.join(', ') + '（sw 缓存版
 // （防止并行会话/旧缓冲把已移除的代码改回来）。
 // 维护：新增关键修复时在此登记一行 { name, file, needle }（needle 为产物中的特征串）。
 const FIX_SENTINELS = [
+  { name: '#1546a TA 发这条动态时主动贴一张的闸（该桌面 sticker 池非空＋朋友圈表情包类型闸开着＋掷中 fd-post-sticker；删＝作者点名的主动贴从贴纸层消失）', file: 'js/feed.js', needle: "if (g.stPool && g.stPool.length && feedTypeOn(cid, 'sticker') && Math.random() * 100 < cfg.postSticker) {" },
+  { name: '#1546b 主动贴的载荷接 #1219 令牌升级链（漏接＝整张 dataURL 顶进权威键 feed-posts，过大键线后被剥图＝「照片消失只剩贴纸」那一族回流）', file: 'js/feed.js', needle: 'if (taStk) feedStickerTokUpgrade(post.id, taStk);' },
+  { name: '#1546c 取生成器这一轮已算好的 sticker 池（零额外扫库，#931 卡顿族口径；改成再调一次 cardPool＝每次发动态多扫一遍全库）', file: 'js/feed.js', needle: 'stPool: uniqArr(pool.sticker)' },
+  { name: '#1545a TA 回贴的承诺写进我贴那一格（掷中才落 owed=1，随 feed-posts 权威键落盘；删＝那一发又只活在 setTimeout 里，页面被回收就永远不回贴）', file: 'js/feed.js', needle: 'if (Math.random() * 100 < cfg.commentProb) rec.owed = 1;' },
+  { name: '#1545b 回场认欠账判据（最后一格是我贴的 且 owed=1 才认；删或改成无条件补投＝把「没掷中」也当成欠，TA 开始凭空贴）', file: 'js/feed.js', needle: 'if (last.owed !== 1) return;' },
+  { name: '#1545c 补投前先等该桌面字卡大键回落＋读不到动态有界重试（删＝冷读窗口 if (!p2) return 静默作废，重开也不补）', file: 'js/feed.js', needle: 'if ((tries || 0) < 2) { feedTaStickerReply(pid, cid, cfg, 1500, (tries || 0) + 1); return; }' },
+  { name: '#1545d 权威落定后一拍跑认账（延后＝避开本模块顶层常量临时死区；删＝欠账永远没人认）', file: 'js/feed.js', needle: 'setTimeout(function () { try { feedStickerDebtCheck(); } catch (eQ) {} }, 1200);' },
+  { name: '#1545e 兑现时摘掉上一格的欠账标记（不摘＝TA 那张被撤回后旧账复活，隔天又贴一次）', file: 'js/feed.js', needle: "if (sOld && (sOld.role || sOld.owner) === 'me') { sOld.owed = 0; break; }" },
   // ==== 2026-10-01 #1541 用户报「为什么添加联系人 桌面无反应」——探针实证：添加链路全绿，主因＝#1250 存储修复引导（300ms 内）／备份提醒抢开全站单例弹窗把「新建联系人」输入框连操作面板一起顶掉＋新桌面未写 lbl-partner 切过去与默认桌面视觉无差（切了等于没切）====
   { name: '#1541a 自绘弹层占用探测判据（fixed·可见·拦点击·面积过半·z≥80；删或改判据＝引导/备份提醒又开始顶用户正在操作的层，或反过来被桌面问候小卡永久卡死不弹）', file: 'js/device.js', needle: 'rc.width * rc.height < vw * vh * 0.5' },
   { name: '#1541b 存储修复引导开弹前让路自绘弹层（只查 modal-mask＝联系人管理面板里点添加又被引导顶掉）', file: 'js/storage-guide.js', needle: "window.mochiOverlayBusy()) { setTimeout(proceed, 2500); return; }" },

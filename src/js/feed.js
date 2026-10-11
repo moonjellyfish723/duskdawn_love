@@ -88,6 +88,9 @@
             try { root.remove(k); } catch (e) {}
           });
         })();
+        // #1545：权威落定后认一次上一场欠下的 TA 回贴。延一拍＝本模块顶层常量（KEY/快照键等）
+        //   此刻还没轮到初始化，run() 可能在模块求值期内就被同步调用，直接读会撞临时死区。
+        setTimeout(function () { try { feedStickerDebtCheck(); } catch (eQ) {} }, 1200);
         try { renderNoticeBadge(); } catch (e) {}
       } catch (e) {}
     }
@@ -1099,7 +1102,7 @@
     // #1198 与评论/回复同一口径：TA 发动态的文字卡中间走「拼接符号」池（自家开关默认关＝原样空格）
     const rcf = window.replyCfgFor ? window.replyCfgFor(cid) : null;
     const body = (window.pyJoinCards && rcf) ? window.pyJoinCards(textParts, rcf, rcf['fd-punct-en'] === 1) : textParts.join(' ');
-    return { content: body, imgs: imgs };
+    return { content: body, imgs: imgs, stPool: uniqArr(pool.sticker) };
   }
   // 动态正文 HTML：文字混排 + 独立图片区（九宫格）
   // v3.5.95：兼容旧数据 p.img 字段
@@ -2008,30 +2011,92 @@
     const pos = (st && Number.isFinite(Number(st.x)) && Number.isFinite(Number(st.y)))
       ? { x: Math.min(92, Math.max(0, Math.round(Number(st.x)))), y: Math.min(92, Math.max(0, Math.round(Number(st.y)))) }
       : feedRandStickerPos();
+    const cid = p.owner || 'default';
+    const cfg = feedCfgFor(cid);
     const rec = { src: (st && st.src) || '', emoji: (st && st.emoji) || '', x: pos.x, y: pos.y, ts: Date.now(), role: 'me', owner: 'me', authorName: feedUserName() };
+    // #1545：掷中的那一刻把「TA 会回贴」这句承诺写进【这一格自己】，随 feed-posts 权威键落盘
+    //   （零新增存储键）。掷空就什么都不写，与旧行为逐字一致。
+    if (Math.random() * 100 < cfg.commentProb) rec.owed = 1;
     p.stickers.push(rec);
     save(list);
     refreshPostCard(pid);
     feedStickerTokUpgrade(pid, rec);
-    const cid = p.owner || 'default';
-    const cfg = feedCfgFor(cid);
-    if (Math.random() * 100 < cfg.commentProb) {
-      setTimeout(() => {
+    if (rec.owed === 1) {
+      feedTaStickerReply(pid, cid, cfg, (cfg.commentSpeedMin + Math.random() * Math.max(1, cfg.commentSpeedMax - cfg.commentSpeedMin)) * 1000, 0);
+    }
+  }
+  // FIX 2026-10-08 #1545 TA 回贴不再是「只活在一枚 setTimeout 里的那一发」——
+  //   现场（owner 直派「我贴了贴纸后，也没有触发联系人回复贴纸」）：回贴是掷中 fd-comment-prob
+  //   （默认 70%）才排程的，排程却只存在于 setTimeout 里（延时 fd-comment-speed-min~max，默认
+  //   1~60 秒）。这期间刷新／切后台／页面被系统回收＝那一发连同定时器一起消失，重开既没有补发
+  //   也没有任何提示＝「TA 不回贴」。聊天同族的失约已由 #1356d~f「按 msgs 自己认一次欠」收口，
+  //   本条没接（tools/verify-1356-owed-reply.mjs 第 18 行原话：feed 半边另案）。
+  //   判据零机型／零 UA：承诺落在贴纸记录自己身上（rec.owed），回场只认「最后一格是我贴的、它欠、
+  //   且是今天贴的」——TA 已回贴（最后一格是 ta 的）＝已兑现；本场刚贴（ts ≥ 本场起点）＝那一发
+  //   还在飞，不归这里管，天然排除「同场双重投」；隔天（feedToday 口径）＝归历史，不翻旧账。
+  function feedTaStickerReply(pid, cid, cfg, delay, tries) {
+    setTimeout(() => {
+      // #1545：与 #1485a 同口径——非当前桌面的字卡大键先等取回落定，同步读池的空窗会把
+      //   「没读到」当「这个桌面没表情包」，TA 就只能兜底贴一个 emoji
+      poolReadyFor(cid, function () {
         const l2 = load();
         const p2 = l2.find(x => x.id === pid);
-        if (!p2) return;
+        if (!p2) {
+          // #1545：读不到那条动态＝冷读窗口的「没读到」，不是「这条不存在了」——有界重试代替静默 return
+          if ((tries || 0) < 2) { feedTaStickerReply(pid, cid, cfg, 1500, (tries || 0) + 1); return; }
+          try { window.__feedStickerReplyMiss = (window.__feedStickerReplyMiss || 0) + 1; } catch (eM) {}
+          return;
+        }
         p2.stickers = Array.isArray(p2.stickers) ? p2.stickers : [];
         const taSt = feedTaPickSticker();
         const pos2 = feedRandStickerPos();
         const nm = p2.taName || taFeedNameFor(cid);
         const rec2 = { src: taSt.src || '', emoji: taSt.emoji || '', x: pos2.x, y: pos2.y, ts: Date.now(), role: 'ta', owner: cid, authorName: nm };
         p2.stickers.push(rec2);
+        // 兑现＝摘掉上一格我贴的那张的欠账标记。欠账判据只看最后一格，摘与不摘都不会重复补投；
+        //   但若不摘，「TA 那张被撤回后」我这张又成最后一格＝旧账复活，所以一并清掉。
+        for (let si = p2.stickers.length - 2; si >= 0; si--) {
+          const sOld = p2.stickers[si];
+          if (sOld && (sOld.role || sOld.owner) === 'me') { sOld.owed = 0; break; }
+        }
         save(l2);
         refreshPostCard(pid);
         feedStickerTokUpgrade(pid, rec2);
         addNotice('comment', pid, nm + ' 在配图上贴了一张贴纸', cid);
-      }, (cfg.commentSpeedMin + Math.random() * Math.max(1, cfg.commentSpeedMax - cfg.commentSpeedMin)) * 1000);
-    }
+        try { window.__feedStickerReplyFired = (window.__feedStickerReplyFired || 0) + 1; } catch (eF) {}
+      });
+    }, delay);
+  }
+  // #1545：回场认账（一桌一场每格只认一次；认的是「上一场没走完的那一发」）
+  const FEED_SESSION_START = Date.now();
+  const stickerDebtDoneFor = new Set();
+  function feedStickerDebtCheck() {
+    try {
+      const list = load();
+      if (!Array.isArray(list) || !list.length) return;
+      const today = feedToday();
+      list.forEach(function (p) {
+        if (!p || !p.id || stickerDebtDoneFor.has(p.id)) return;
+        const ss = Array.isArray(p.stickers) ? p.stickers : [];
+        if (!ss.length) return;
+        const last = ss[ss.length - 1];
+        if (!last || (last.role || last.owner) !== 'me') return;
+        if (last.owed !== 1) return;
+        const ts = Number(last.ts || 0);
+        if (!(ts > 0) || ts >= FEED_SESSION_START) return;
+        const d = new Date(ts);
+        if ((d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate()) !== today) return;
+        const cid = p.owner || 'default';
+        const cfg = feedCfgFor(cid);
+        stickerDebtDoneFor.add(p.id);
+        try { window.__feedStickerDebtFired = (window.__feedStickerDebtFired || 0) + 1; } catch (eD) {}
+        const waitMin = Math.max(1, Number(cfg.commentSpeedMin) || 1);
+        const waitMax = Math.max(waitMin, Number(cfg.commentSpeedMax) || waitMin);
+        // 接着上一场的等待走：已过的时间扣掉，最少留 1.2 秒，别让人一进来就看见「凭空多一张」
+        const wait = Math.max(1200, (waitMin + Math.random() * (waitMax - waitMin)) * 1000 - (Date.now() - ts));
+        feedTaStickerReply(p.id, cid, cfg, wait, 0);
+      });
+    } catch (eS) {}
   }
   // #1219 「先上屏、后换令牌」：feedMem 持有同一批对象，池确认落盘后就地改 src，下一次
   //   stringify（#496 的 ≥2.5s 合并写窗口）自然带上令牌；这一格若在此期间被撤回／改贴
@@ -3286,8 +3351,20 @@ if (comInput) comInput.addEventListener('keydown', (e) => { if (e.key === 'Enter
         const taAv = cs.get('avatar-partner') || '';
         const list = load();
         const post = { id: 'f_' + Date.now() + '_' + cid, role: 'ta', owner: cid, authorName: taName, authorAv: '', taName: taName, taAv: '', content: g.content, imgs: g.imgs, ts: Date.now(), likes: [], comments: [] };
+        // #1546：TA 发自己这条动态时也有概率【主动贴一张贴纸】（作者 2026-10-08 点名这条行为）。
+        //   掷同一条「使用表情包概率」fd-post-sticker、取同该桌面 sticker 池（g.stPool＝生成器这一轮
+        //   已经算好的那份，零额外扫库，#931 口径）、落位走同一把 feedRandStickerPos；
+        //   「朋友圈用表情包」类型闸（reply-fd-sticker-en）关掉时不贴；载荷走 #1219 那条令牌升级链，
+        //   不把整张 dataURL 顶进权威键 feed-posts。
+        let taStk = null;
+        if (g.stPool && g.stPool.length && feedTypeOn(cid, 'sticker') && Math.random() * 100 < cfg.postSticker) {
+          const sp = feedRandStickerPos();
+          taStk = { src: g.stPool[Math.floor(Math.random() * g.stPool.length)], emoji: '', x: sp.x, y: sp.y, ts: Date.now(), role: 'ta', owner: cid, authorName: taName };
+          post.stickers = [taStk];
+        }
         list.unshift(post);
         save(list);
+        if (taStk) feedStickerTokUpgrade(post.id, taStk);
         cs.set('feed-last', String(now));
         cs.set('feed-next', String(cfg.minInterval + Math.random() * Math.max(1, cfg.maxInterval - cfg.minInterval)));
         cs.set('feed-day-count', JSON.stringify({ t: today, n: dayCount.n + 1 }));

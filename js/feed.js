@@ -55,6 +55,7 @@ try { if (parseFloat(rv) > parseFloat(dv)) def.set(k, rv); } catch (e) {}
 try { root.remove(k); } catch (e) {}
 });
 })();
+setTimeout(function () { try { feedStickerDebtCheck(); } catch (eQ) {} }, 1200);
 try { renderNoticeBadge(); } catch (e) {}
 } catch (e) {}
 }
@@ -762,7 +763,7 @@ if (!pushed && !(take(pick.text, textParts) || take(pick.fb, textParts))) break;
 }
 const rcf = window.replyCfgFor ? window.replyCfgFor(cid) : null;
 const body = (window.pyJoinCards && rcf) ? window.pyJoinCards(textParts, rcf, rcf['fd-punct-en'] === 1) : textParts.join(' ');
-return { content: body, imgs: imgs };
+return { content: body, imgs: imgs, stPool: uniqArr(pool.sticker) };
 }
 function contentHtmlFor(p) {
 let content = String(p.content || '');
@@ -1477,30 +1478,74 @@ p.stickers = Array.isArray(p.stickers) ? p.stickers : [];
 const pos = (st && Number.isFinite(Number(st.x)) && Number.isFinite(Number(st.y)))
 ? { x: Math.min(92, Math.max(0, Math.round(Number(st.x)))), y: Math.min(92, Math.max(0, Math.round(Number(st.y)))) }
 : feedRandStickerPos();
+const cid = p.owner || 'default';
+const cfg = feedCfgFor(cid);
 const rec = { src: (st && st.src) || '', emoji: (st && st.emoji) || '', x: pos.x, y: pos.y, ts: Date.now(), role: 'me', owner: 'me', authorName: feedUserName() };
+if (Math.random() * 100 < cfg.commentProb) rec.owed = 1;
 p.stickers.push(rec);
 save(list);
 refreshPostCard(pid);
 feedStickerTokUpgrade(pid, rec);
-const cid = p.owner || 'default';
-const cfg = feedCfgFor(cid);
-if (Math.random() * 100 < cfg.commentProb) {
+if (rec.owed === 1) {
+feedTaStickerReply(pid, cid, cfg, (cfg.commentSpeedMin + Math.random() * Math.max(1, cfg.commentSpeedMax - cfg.commentSpeedMin)) * 1000, 0);
+}
+}
+function feedTaStickerReply(pid, cid, cfg, delay, tries) {
 setTimeout(() => {
+poolReadyFor(cid, function () {
 const l2 = load();
 const p2 = l2.find(x => x.id === pid);
-if (!p2) return;
+if (!p2) {
+if ((tries || 0) < 2) { feedTaStickerReply(pid, cid, cfg, 1500, (tries || 0) + 1); return; }
+try { window.__feedStickerReplyMiss = (window.__feedStickerReplyMiss || 0) + 1; } catch (eM) {}
+return;
+}
 p2.stickers = Array.isArray(p2.stickers) ? p2.stickers : [];
 const taSt = feedTaPickSticker();
 const pos2 = feedRandStickerPos();
 const nm = p2.taName || taFeedNameFor(cid);
 const rec2 = { src: taSt.src || '', emoji: taSt.emoji || '', x: pos2.x, y: pos2.y, ts: Date.now(), role: 'ta', owner: cid, authorName: nm };
 p2.stickers.push(rec2);
+for (let si = p2.stickers.length - 2; si >= 0; si--) {
+const sOld = p2.stickers[si];
+if (sOld && (sOld.role || sOld.owner) === 'me') { sOld.owed = 0; break; }
+}
 save(l2);
 refreshPostCard(pid);
 feedStickerTokUpgrade(pid, rec2);
 addNotice('comment', pid, nm + ' 在配图上贴了一张贴纸', cid);
-}, (cfg.commentSpeedMin + Math.random() * Math.max(1, cfg.commentSpeedMax - cfg.commentSpeedMin)) * 1000);
+try { window.__feedStickerReplyFired = (window.__feedStickerReplyFired || 0) + 1; } catch (eF) {}
+});
+}, delay);
 }
+const FEED_SESSION_START = Date.now();
+const stickerDebtDoneFor = new Set();
+function feedStickerDebtCheck() {
+try {
+const list = load();
+if (!Array.isArray(list) || !list.length) return;
+const today = feedToday();
+list.forEach(function (p) {
+if (!p || !p.id || stickerDebtDoneFor.has(p.id)) return;
+const ss = Array.isArray(p.stickers) ? p.stickers : [];
+if (!ss.length) return;
+const last = ss[ss.length - 1];
+if (!last || (last.role || last.owner) !== 'me') return;
+if (last.owed !== 1) return;
+const ts = Number(last.ts || 0);
+if (!(ts > 0) || ts >= FEED_SESSION_START) return;
+const d = new Date(ts);
+if ((d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate()) !== today) return;
+const cid = p.owner || 'default';
+const cfg = feedCfgFor(cid);
+stickerDebtDoneFor.add(p.id);
+try { window.__feedStickerDebtFired = (window.__feedStickerDebtFired || 0) + 1; } catch (eD) {}
+const waitMin = Math.max(1, Number(cfg.commentSpeedMin) || 1);
+const waitMax = Math.max(waitMin, Number(cfg.commentSpeedMax) || waitMin);
+const wait = Math.max(1200, (waitMin + Math.random() * (waitMax - waitMin)) * 1000 - (Date.now() - ts));
+feedTaStickerReply(p.id, cid, cfg, wait, 0);
+});
+} catch (eS) {}
 }
 function feedStickerTokUpgrade(pid, rec) {
 if (!rec || !isSnapPayload(rec.src)) return;
@@ -2505,8 +2550,15 @@ const taName = cs.get('lbl-partner') || 'TA';
 const taAv = cs.get('avatar-partner') || '';
 const list = load();
 const post = { id: 'f_' + Date.now() + '_' + cid, role: 'ta', owner: cid, authorName: taName, authorAv: '', taName: taName, taAv: '', content: g.content, imgs: g.imgs, ts: Date.now(), likes: [], comments: [] };
+let taStk = null;
+if (g.stPool && g.stPool.length && feedTypeOn(cid, 'sticker') && Math.random() * 100 < cfg.postSticker) {
+const sp = feedRandStickerPos();
+taStk = { src: g.stPool[Math.floor(Math.random() * g.stPool.length)], emoji: '', x: sp.x, y: sp.y, ts: Date.now(), role: 'ta', owner: cid, authorName: taName };
+post.stickers = [taStk];
+}
 list.unshift(post);
 save(list);
+if (taStk) feedStickerTokUpgrade(post.id, taStk);
 cs.set('feed-last', String(now));
 cs.set('feed-next', String(cfg.minInterval + Math.random() * Math.max(1, cfg.maxInterval - cfg.minInterval)));
 cs.set('feed-day-count', JSON.stringify({ t: today, n: dayCount.n + 1 }));
