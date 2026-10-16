@@ -44,6 +44,7 @@ const EXCLUDE = ['contacts', 'active-contact', 'feed-posts', 'migrated-v1', 'js-
 'call-active',
 'applock-en', 'applock-pin', 'applock-qa',
 'applock-qa-en', 'applock-qalist', 'applock-qaskip',
+'entry-quiz-pass',
 'cardlock-state',
 'cs-font',
 'sfx-unified',
@@ -52,7 +53,7 @@ const EXCLUDE = ['contacts', 'active-contact', 'feed-posts', 'migrated-v1', 'js-
 'flash-check-last',
 'ver-retry',
 'fhub-freq', 'fhub-seen',
-'age-confirmed'];
+'splash-folded', 'age-confirmed'];
 function isExcluded(k) {
 const r = k.slice(G.length + 1);
 if (r.indexOf('__') === 0) return true;
